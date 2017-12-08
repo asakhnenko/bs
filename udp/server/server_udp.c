@@ -26,12 +26,35 @@ void init_addr(struct sockaddr_in* addr, int port)
 	addr->sin_addr.s_addr = inet_addr("127.0.0.1");
 }
 
-char* create_command(char *filepath)
+char* get_name(const char* filepath)
 {
-  char *tmp = "tar cfzv tmp/file.tar.gz ";
-  char *command = malloc(strlen(tmp) + strlen(filepath) + 1);
-  strcpy(command,tmp);
-  strcat(command,filepath);
+  char *name;
+  char *search ="/";
+  char *temp;
+  char filepath_copy[strlen(filepath)];
+  strcpy(filepath_copy, filepath);
+
+  temp = strtok(filepath_copy, search);
+  while(temp != NULL)
+  {
+    temp = strtok(NULL, search);
+    if(temp != NULL)
+    {
+      name = temp;
+    }
+  }
+  return name;
+}
+
+char* create_command(const char *filepath)
+{
+  char *tmp = "tar -cf tmp/";
+  char *command = malloc(sizeof(char)*2*(strlen(tmp) + strlen(filepath)));
+  strcpy(command, tmp);
+  char *name = get_name(filepath);
+  strcat(command, name);
+  strcat(command, ".tar.gz ");
+  strcat(command, filepath);
   return command;
 }
 
@@ -43,18 +66,9 @@ void create_archive(char *filepath)
 	free(command);
 }
 
-char* get_name(char* filepath)
+unsigned int get_file_size()
 {
-  char *name;
-  char *search ="/";
 
-  name = strtok(filepath, search);
-  while(name != NULL)
-  {
-    name = strtok(NULL, search);
-  }
-
-  return name;
 }
 
 int main(int argc, char *argv[])
@@ -77,15 +91,13 @@ int main(int argc, char *argv[])
 
   char *filepath;
   filepath = argv[2];
-  printf("Got it\n");
+  printf("%s\n",filepath);
   if(!file_exists(filepath))
   {
       printf("Please give a valid file path\n");
       return 0;
   }
-  printf("Going in\n");
-  char *tmp = get_name(filepath);
-  //printf(tmp);
+
   //----------------------------------
   int socket_descriptor, dest_socket_descriptor, err, socklen;
   struct sockaddr_in addr, dest_addr;
@@ -141,9 +153,18 @@ int main(int argc, char *argv[])
   unsigned char typID = buff[0];
   if(typID == REQUEST_T)
   {
+    printf("Request received\n");
     //--- Sending
     unsigned char* msg[2048];
-    memcpy(msg, &HEADER_T, sizeof(HEADER_T));
+    memcpy(msg, &HEADER_T, sizeof(unsigned char));
+
+    char *name = get_name(filepath);
+    printf("LOOK HERE %s\n",name);
+    unsigned short namelen = strlen(name);
+    memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
+    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, sizeof(name));
+
+
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {

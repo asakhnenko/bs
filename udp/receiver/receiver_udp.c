@@ -55,14 +55,26 @@ int main(int argc, char *argv[])
 
     //--- Sending
     unsigned char msg[2048];
-		memcpy(msg, &REQUEST_T, sizeof(REQUEST_T));
+		memcpy(msg, &REQUEST_T, sizeof(unsigned char));
     socklen = sizeof(struct sockaddr_in);
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {
         perror("Send error: ");
     }
+		printf("Request sent\n");
 
-    //--- Receiving
+		//--- Receiving
+		unsigned char buff[2048];
+		printf("Waiting for connection...\n");
+		err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+		if(err<0)
+		{
+				perror("Connection error: ");
+		}
+		else if(err == 0)
+		{
+				printf("Empty message received\n");
+		}
 
 }

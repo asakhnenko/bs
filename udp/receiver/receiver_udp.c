@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 		//--- Receiving
 		unsigned char buff[2048];
-		printf("Waiting for connection...\n");
+		printf("Waiting for response...\n");
 		err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 		if(err<0)
 		{

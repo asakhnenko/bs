@@ -13,7 +13,7 @@
  * Checks whether file exists at filename
  * \param *filename path to the file
  */
-int file_exists(char *filepath)
+int file_exists(const char *filepath)
 {
   struct stat buffer;
   return (stat(filepath,&buffer) == 0);
@@ -26,14 +26,13 @@ void init_addr(struct sockaddr_in* addr, int port)
 	addr->sin_addr.s_addr = inet_addr("127.0.0.1");
 }
 
-char* get_name(const char* filepath)
+char* get_name(char* filepath)
 {
   char *name;
   char *search ="/";
   char *temp;
   char filepath_copy[strlen(filepath)];
   strcpy(filepath_copy, filepath);
-
   temp = strtok(filepath_copy, search);
   while(temp != NULL)
   {
@@ -43,13 +42,15 @@ char* get_name(const char* filepath)
       name = temp;
     }
   }
-  return name;
+  char* ret = (char*)malloc(sizeof(char) * (strlen(name) + 1));
+  strcpy(ret, name);
+  return ret;
 }
 
-char* create_command(const char *filepath)
+char* create_command(char *filepath)
 {
   char *tmp = "tar -cf tmp/";
-  char *command = malloc(sizeof(char)*2*(strlen(tmp) + strlen(filepath)));
+  char *command = (char*)malloc(sizeof(char)*2*(strlen(tmp) + strlen(filepath) + 2));
   strcpy(command, tmp);
   char *name = get_name(filepath);
   strcat(command, name);
@@ -66,9 +67,25 @@ void create_archive(char *filepath)
 	free(command);
 }
 
-unsigned int get_file_size()
+unsigned int get_file_size(char *name)
 {
-
+  printf("IN THE FUNCTION%s\n",name);
+  printf("DEGUB 1\n");
+  char path[strlen(name)+32];
+  printf("DEGUB 2\n");
+  strcpy(path, "tmp/");
+  strcat(path, name);
+  strcat(path, ".tar.gz");
+  printf("DEGUB 3\n");
+  FILE *file = fopen(path,"rb");
+  if(!file)
+  {
+    printf("Could not find archived file");
+  }
+  fseek(file, 0, SEEK_END);
+  unsigned int size = ftell(file);
+  fclose(file);
+  return size;
 }
 
 int main(int argc, char *argv[])
@@ -159,11 +176,12 @@ int main(int argc, char *argv[])
     memcpy(msg, &HEADER_T, sizeof(unsigned char));
 
     char *name = get_name(filepath);
-    printf("LOOK HERE %s\n",name);
     unsigned short namelen = strlen(name);
+    printf("LOOK HERE %s\n",name);
     memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
     memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, sizeof(name));
-
+    unsigned int datalen = get_file_size(name);
+    printf("CHECK ME UOT %d\n",datalen);
 
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)

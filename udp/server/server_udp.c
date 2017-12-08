@@ -188,13 +188,7 @@ int main(int argc, char *argv[])
     memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
     //strlen counts size till null-terminal
     memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, namelen);
-
-    printf("%hhu\n",msg[0]);
-    printf("%hhu\n",msg[1]);
-    printf("%hhu\n",msg[2]);
-    printf("%hhu\n",msg[3]);
-    printf("%hhu\n",msg[4]);
-    printf("%hhu\n",msg[5]);
+    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short) + namelen, datalen, sizeof(unsigned int));
 
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)

@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {
-        perror("Send error: ");
+      perror("Send error: ");
     }
 		printf("Request sent\n");
 
@@ -70,11 +70,28 @@ int main(int argc, char *argv[])
 		err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 		if(err<0)
 		{
-				perror("Connection error: ");
+			perror("Connection error: ");
 		}
 		else if(err == 0)
 		{
-				printf("Empty message received\n");
+			printf("Empty message received\n");
+		}
+
+		unsigned char typID = buff[0];
+		if(typID == HEADER_T)
+		{
+			printf("Saving file...\n");
+			unsigned short namelen = buff[sizeof(unsigned char)];
+			char* name = &buff[sizeof(unsigned char) + sizeof(unsigned short)];
+
+			printf("YAHOOO %s\n",name);
+
+			printf("%hhu\n",buff[0]);
+			printf("%hhu\n",buff[1]);
+			printf("%hhu\n",buff[2]);
+			printf("%hhu\n",buff[3]);
+			printf("%hhu\n",buff[4]);
+			printf("%hhu\n",buff[5]);
 		}
 
 }

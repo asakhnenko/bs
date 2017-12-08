@@ -42,6 +42,7 @@ char* get_name(char* filepath)
       name = temp;
     }
   }
+  //TODO:FREE THE NAME
   char* ret = (char*)malloc(sizeof(char) * (strlen(name) + 1));
   strcpy(ret, name);
   return ret;
@@ -51,11 +52,14 @@ char* create_command(char *filepath)
 {
   char *tmp = "tar -cf tmp/";
   char *command = (char*)malloc(sizeof(char)*2*(strlen(tmp) + strlen(filepath) + 2));
+
   strcpy(command, tmp);
   char *name = get_name(filepath);
   strcat(command, name);
   strcat(command, ".tar.gz ");
   strcat(command, filepath);
+
+  free(name);
   return command;
 }
 
@@ -69,22 +73,22 @@ void create_archive(char *filepath)
 
 unsigned int get_file_size(char *name)
 {
-  printf("IN THE FUNCTION%s\n",name);
-  printf("DEGUB 1\n");
   char path[strlen(name)+32];
-  printf("DEGUB 2\n");
+
   strcpy(path, "tmp/");
   strcat(path, name);
   strcat(path, ".tar.gz");
-  printf("DEGUB 3\n");
+
   FILE *file = fopen(path,"rb");
   if(!file)
   {
     printf("Could not find archived file");
   }
+
   fseek(file, 0, SEEK_END);
   unsigned int size = ftell(file);
   fclose(file);
+
   return size;
 }
 
@@ -171,17 +175,26 @@ int main(int argc, char *argv[])
   if(typID == REQUEST_T)
   {
     printf("Request received\n");
-    //--- Sending
-    unsigned char* msg[2048];
-    memcpy(msg, &HEADER_T, sizeof(unsigned char));
 
+    //--- Sending
+    // Creating message
     char *name = get_name(filepath);
     unsigned short namelen = strlen(name);
-    printf("LOOK HERE %s\n",name);
-    memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
-    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, sizeof(name));
     unsigned int datalen = get_file_size(name);
-    printf("CHECK ME UOT %d\n",datalen);
+
+    unsigned char* msg = malloc(sizeof(unsigned char) + sizeof(unsigned short) + namelen);
+
+    memcpy(msg, &HEADER_T, sizeof(unsigned char));
+    memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
+    //strlen counts size till null-terminal
+    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, namelen);
+
+    printf("%hhu\n",msg[0]);
+    printf("%hhu\n",msg[1]);
+    printf("%hhu\n",msg[2]);
+    printf("%hhu\n",msg[3]);
+    printf("%hhu\n",msg[4]);
+    printf("%hhu\n",msg[5]);
 
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)

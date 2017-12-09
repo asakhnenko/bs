@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <libgen.h> // new
 
 static const size_t BUFFER_SIZE_MTU_PPPeE = 1492;
 
@@ -36,20 +37,20 @@ static char* create_sha512_string(unsigned char* sha512) {
     return result;
 }
 
-static void init_addr_receiver(struct sockaddr_in* addr, int port, char *sender_addr) {
+void init_addr_receiver(struct sockaddr_in* addr, int port, char *sender_addr) {
 	addr->sin_family = AF_INET;
 	addr->sin_port = htons(port); //host to network short encoding
 	addr->sin_addr.s_addr = inet_addr(sender_addr);
 }
 
-static void init_addr_sender(struct sockaddr_in *addr, int port)
+void init_addr_sender(struct sockaddr_in *addr, int port)
 {
 	addr->sin_family = AF_INET;
 	addr->sin_port = htons(port); //host to network short encoding
 	addr->sin_addr.s_addr = htonl(INADDR_ANY);
 }
 
-static int file_exists(char *fname)
+int file_exists(char *fname)
 {
   if(access(fname, F_OK ) != -1)
   {
@@ -60,8 +61,60 @@ static int file_exists(char *fname)
   }
 }
 
-static char *get_file_name(char *path){
-	return basename(path);
+char *get_file_name(char *path)
+{
+	return basename(path); //(Do not pass these pointers to free(3).)
+}
+
+char *get_archive_name(char *name)
+{
+	char *archive_file_name;
+	archive_file_name = malloc(strlen(name) + 8);
+	strncpy(archive_file_name, name, strlen(name));
+	strncat(archive_file_name, ".tar.gz", 7);
+	return archive_file_name;
+}
+
+unsigned int get_file_size(char *name)
+{
+	unsigned int file_size;
+	char *archive_file_name;
+	FILE *fp;
+
+	archive_file_name = malloc(strlen(name) + 8); // or 9?
+	strncpy(archive_file_name, name, strlen(name));
+	strncat(archive_file_name, ".tar.gz", 7); // or 8?
+
+	fp = fopen(archive_file_name, "r");
+	if(fp==NULL)
+	{
+
+		printf("ERROR: could not open file: %s\n", archive_file_name);
+		fclose(fp);
+		free(archive_file_name);
+		return -1;
+	}
+
+	fseek(fp, 0L, SEEK_END);
+	file_size = ftell(fp);
+
+	fclose(fp);
+	free(archive_file_name);
+	return file_size;
+}
+
+char* archive(char *filename, char *filepath)
+{
+  printf("inside..\n");
+  char *command;
+  command = malloc(20 + strlen(filename) + strlen(filepath));
+  sprintf(command, "tar -zcf %s.tar.gz %s", filename, filepath);
+  if(system(command) < 0)
+  {
+  	printf("ERROR: %s could not be archived\n", filename);
+  }
+  free(command);
+  return 0;
 }
 
 #endif

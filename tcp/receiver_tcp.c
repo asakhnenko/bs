@@ -6,6 +6,7 @@
 #include<arpa/inet.h>
 #include<sys/types.h>
 #include<sys/socket.h>
+#include <openssl/sha.h>
 #include"Aufgabe2.h"
 
 int main(int argc, char *argv[])
@@ -54,9 +55,9 @@ int main(int argc, char *argv[])
 	}
 
 	// send msg
-	strcpy(send_buffer,"hello, world!");
-	printf("sending msg '%s'...\n", send_buffer);
-	byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
+	//strcpy(send_buffer,"hello, world!");
+	//printf("sending msg '%s'...\n", send_buffer);
+	//byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
 
 	read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPeE);
 

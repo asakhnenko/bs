@@ -6,15 +6,19 @@
 #include<arpa/inet.h>
 #include<sys/types.h>
 #include<sys/socket.h>
-#include <libgen.h>
+#include<libgen.h>
+#include<openssl/sha.h>
 #include"Aufgabe2.h"
 
 int main(int argc, char *argv[])
 {
 	int socket_descriptor, err, res, newsock_destriptor, byte_cnt;
+	unsigned int file_size;
 	struct sockaddr_in sender_addr, client_addr;
 	socklen_t addrlen;
-	char buffer[BUFFER_SIZE_MTU_PPPeE];
+	char hash_512[SHA512_DIGEST_LENGTH];
+	unsigned char buffer[BUFFER_SIZE_MTU_PPPeE], *file_buffer;
+	FILE *fp;
 
 	// check number of arguments
 	if(argc!=3)
@@ -42,8 +46,27 @@ int main(int argc, char *argv[])
 	}
 
 	printf("start sender...\n");
+	printf("archive %s...\n", filepath);
 
-	printf("file name: %s\n", get_file_name(filepath));
+	archive(get_file_name(filepath), filepath);
+
+	printf(filename_str, get_file_name(filepath));
+	file_size = get_file_size(get_file_name(filepath));
+	printf(filesize_str, file_size);
+	printf("CP %s\n", get_archive_name(get_file_name(filepath)));
+	
+	//TODO
+	/**fp = fopen(archive_file_name, "r");
+	if(fp==NULL)
+	{
+
+		printf("ERROR: could not open file: %s\n", archive_file_name);
+		fclose(fp);
+		free(archive_file_name);
+		return -1;
+	}
+
+	printf(sender_sha512, );*/
 
 
 	// create socket
@@ -82,16 +105,17 @@ int main(int argc, char *argv[])
 	}
 
 	printf("Received connection from %s!\n", inet_ntoa(client_addr.sin_addr));
-	byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPeE);
-	if(byte_cnt <0)
-	{
-		printf("ERROR: receiving failed!\n");
-		return 0;
-	}
-	printf("received %d bytes\n", byte_cnt);
-	printf("msg: %s\n", buffer);
+	//byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPeE);
+	//if(byte_cnt <0)
+	//{
+	//	printf("ERROR: receiving failed!\n");
+	//	return 0;
+	//}
+	//printf("received %d bytes\n", byte_cnt);
+	//printf("msg: %s\n", buffer);
 
-	write(newsock_destriptor, "got it!", strlen("got it") + 1);
+
+	write(newsock_destriptor, "connection established!", strlen("connection established!") + 1);
 
 	close(newsock_destriptor);	
 	close(socket_descriptor);

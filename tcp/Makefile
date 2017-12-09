@@ -1,10 +1,10 @@
 default: sender receiver received_dir
 
 sender: sender_tcp.c Aufgabe2.h
-	gcc -o sender sender_tcp.c -lssl -lcrypto -Wall
+	gcc -o sender sender_tcp.c -lssl -lcrypto
 
 receiver: receiver_tcp.c Aufgabe2.h
-	gcc -o receiver receiver_tcp.c -lssl -lcrypto -Wall
+	gcc -o receiver receiver_tcp.c -lssl -lcrypto
 
 received_dir:
 	mkdir -p received

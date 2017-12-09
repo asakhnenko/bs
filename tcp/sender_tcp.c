@@ -6,32 +6,15 @@
 #include<arpa/inet.h>
 #include<sys/types.h>
 #include<sys/socket.h>
+#include <libgen.h>
 #include"Aufgabe2.h"
-
-void init_addr(struct sockaddr_in *addr, int port)
-{
-	addr->sin_family = AF_INET;
-	addr->sin_port = htons(port); //host to network short encoding
-	addr->sin_addr.s_addr = htonl(INADDR_ANY);
-}
-
-int file_exists(char *fname)
-{
-  if(access(fname, F_OK ) != -1)
-  {
-    return 1;
-  } else
-  {
-    return 0;
-  }
-}
 
 int main(int argc, char *argv[])
 {
-	int socket_descriptor, err, res, newsock, flen;
+	int socket_descriptor, err, res, newsock_destriptor, byte_cnt;
 	struct sockaddr_in sender_addr, client_addr;
 	socklen_t addrlen;
-	char msg[64];
+	char buffer[BUFFER_SIZE_MTU_PPPeE];
 
 	// check number of arguments
 	if(argc!=3)
@@ -45,7 +28,7 @@ int main(int argc, char *argv[])
   	port = atoi(argv[1]);
   	if(port < 0 || port > 65536)
   	{
-      printf("ERROR: please provide a valid number for a port\n");
+  	  printf(port_error, argv[1]);
       return 0;
   	}
 
@@ -54,11 +37,13 @@ int main(int argc, char *argv[])
 	filepath = argv[2];
     if(!file_exists(filepath))
 	{
-		printf("ERROR: please give a valid file path\n");
+		printf("ERROR: the file '%s' does not exist. Please provide a valid file path.\n", filepath);
 	   	return 0;
 	}
 
 	printf("start sender...\n");
+
+	printf("file name: %s\n", get_file_name(filepath));
 
 
 	// create socket
@@ -70,7 +55,7 @@ int main(int argc, char *argv[])
 	}
 
 	// init address
-	init_addr(&sender_addr, port);
+	init_addr_sender(&sender_addr, port);
 
 	// binding
 	err = bind(socket_descriptor, (struct sockaddr *) &sender_addr, sizeof(struct sockaddr_in));
@@ -89,17 +74,28 @@ int main(int argc, char *argv[])
 
 	addrlen = sizeof(struct sockaddr_in);
 
-	newsock = accept(socket_descriptor, (struct sockaddr *) &client_addr, &addrlen);
-	if(newsock<0)
+	newsock_destriptor = accept(socket_descriptor, (struct sockaddr *) &client_addr, &addrlen);
+	if(newsock_destriptor<0)
 	{
 		printf("ERROR: accepting failed!\n");
 		return 0;
 	}
 
 	printf("Received connection from %s!\n", inet_ntoa(client_addr.sin_addr));
+	byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPeE);
+	if(byte_cnt <0)
+	{
+		printf("ERROR: receiving failed!\n");
+		return 0;
+	}
+	printf("received %d bytes\n", byte_cnt);
+	printf("msg: %s\n", buffer);
 
-	read(socket_descriptor, &msg, &flen);
-	printf("msg: %s\n", msg);
+	write(newsock_destriptor, "got it!", strlen("got it") + 1);
+
+	close(newsock_destriptor);	
+	close(socket_descriptor);
+
 }
 
 

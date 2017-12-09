@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+static const size_t BUFFER_SIZE_MTU_PPPeE = 1492;
+
 static const char SHA512_CMP_OK = 0;
 static const char SHA512_CMP_ERROR = -1;
 
@@ -32,6 +34,34 @@ static char* create_sha512_string(unsigned char* sha512) {
         sprintf(result+2*i,"%02x",*(sha512+i));
     }
     return result;
+}
+
+static void init_addr_receiver(struct sockaddr_in* addr, int port, char *sender_addr) {
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port); //host to network short encoding
+	addr->sin_addr.s_addr = inet_addr(sender_addr);
+}
+
+static void init_addr_sender(struct sockaddr_in *addr, int port)
+{
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port); //host to network short encoding
+	addr->sin_addr.s_addr = htonl(INADDR_ANY);
+}
+
+static int file_exists(char *fname)
+{
+  if(access(fname, F_OK ) != -1)
+  {
+    return 1;
+  } else
+  {
+    return 0;
+  }
+}
+
+static char *get_file_name(char *path){
+	return basename(path);
 }
 
 #endif

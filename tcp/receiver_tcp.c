@@ -8,18 +8,11 @@
 #include<sys/socket.h>
 #include"Aufgabe2.h"
 
-void init_addr(struct sockaddr_in* addr, int port, char *sender_addr)
-{
-	addr->sin_family = AF_INET;
-	addr->sin_port = htons(port); //host to network short encoding
-	addr->sin_addr.s_addr = inet_addr(sender_addr);
-}
-
 int main(int argc, char *argv[])
 {
 	int socket_descriptor, port, err, byte_cnt;
 	struct sockaddr_in dest_addr;
-	char *input_addr, msg[64];
+	char *input_addr, send_buffer[BUFFER_SIZE_MTU_PPPeE], rcv_buffer[BUFFER_SIZE_MTU_PPPeE];
 	socklen_t addrlen;
 
 	// check number of arguments
@@ -33,13 +26,13 @@ int main(int argc, char *argv[])
   	port = atoi(argv[2]);
   	if(port < 0 || port > 65536)
   	{
-      printf("ERROR: please provide a valid number for a port\n");
+  	  printf(port_error, argv[2]);
       return 0;
   	}
 
 	// extract addr
 	input_addr = argv[1];
-    init_addr(&dest_addr, port, input_addr);
+    init_addr_receiver(&dest_addr, port, input_addr);
 
 
 	printf("start receiver...\n");
@@ -61,8 +54,14 @@ int main(int argc, char *argv[])
 	}
 
 	// send msg
-	strcpy(msg,"hello, world!");
-	printf("sending msg '%s'...\n", msg);
-	byte_cnt = write(socket_descriptor, msg, strlen(msg)+1);
+	strcpy(send_buffer,"hello, world!");
+	printf("sending msg '%s'...\n", send_buffer);
+	byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
+
+	read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPeE);
+
+	printf("received: %s\n", rcv_buffer);
+
+	close(socket_descriptor);
 
 }

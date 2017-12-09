@@ -8,7 +8,6 @@
 #include<sys/socket.h>
 #include"Aufgabe2.h"
 
-
 void init_addr(struct sockaddr_in *addr, int port)
 {
 	addr->sin_family = AF_INET;
@@ -29,7 +28,10 @@ int file_exists(char *fname)
 
 int main(int argc, char *argv[])
 {
-	int socket_descriptor, err;
+	int socket_descriptor, err, res, newsock, flen;
+	struct sockaddr_in sender_addr, client_addr;
+	socklen_t addrlen;
+	char msg[64];
 
 	// check number of arguments
 	if(argc!=3)
@@ -56,6 +58,9 @@ int main(int argc, char *argv[])
 	   	return 0;
 	}
 
+	printf("start sender...\n");
+
+
 	// create socket
 	socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
 	if(socket_descriptor < 0)
@@ -65,20 +70,36 @@ int main(int argc, char *argv[])
 	}
 
 	// init address
-	struct sockaddr_in addr;
-	init_addr(&addr, port);
+	init_addr(&sender_addr, port);
 
 	// binding
-	err = bind(socket_descriptor, (struct sockaddr *) &addr, sizeof(struct sockaddr_in));
+	err = bind(socket_descriptor, (struct sockaddr *) &sender_addr, sizeof(struct sockaddr_in));
 	if(err < 0)
 	{
 		printf("ERROR: binding failed!\n");
+		return 0;
 	}
 
-	
-	//bind(socket_descriptor, )
+	res = listen(socket_descriptor, 5);
+	if(res<0)
+	{
+		printf("ERROR: listening failed!\n");
+		return 0;
+	}
 
-	printf("start sender...\n");
+	addrlen = sizeof(struct sockaddr_in);
+
+	newsock = accept(socket_descriptor, (struct sockaddr *) &client_addr, &addrlen);
+	if(newsock<0)
+	{
+		printf("ERROR: accepting failed!\n");
+		return 0;
+	}
+
+	printf("Received connection from %s!\n", inet_ntoa(client_addr.sin_addr));
+
+	read(socket_descriptor, &msg, &flen);
+	printf("msg: %s\n", msg);
 }
 
 

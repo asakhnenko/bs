@@ -53,7 +53,8 @@ int main(int argc, char *argv[])
     //--- Fill in sockaddr_in
     init_addr(&dest_addr, port, server_addr);
 
-    //--- Sending
+		//----------------------------------
+    //--- Sending request
     unsigned char msg[2048];
 		memcpy(msg, &REQUEST_T, sizeof(unsigned char));
     socklen = sizeof(struct sockaddr_in);
@@ -64,7 +65,8 @@ int main(int argc, char *argv[])
     }
 		printf("Request sent\n");
 
-		//--- Receiving
+		//----------------------------------
+		//--- Receiving header
 		unsigned char buff[2048];
 		printf("Waiting for response...\n");
 		err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
@@ -77,21 +79,32 @@ int main(int argc, char *argv[])
 			printf("Empty message received\n");
 		}
 
+		//----------------------------------
+		// Receiving the files
 		unsigned char typID = buff[0];
 		if(typID == HEADER_T)
 		{
-			printf("Saving file...\n");
-			unsigned short namelen = buff[sizeof(unsigned char)];
-			char* name = &buff[sizeof(unsigned char) + sizeof(unsigned short)];
+			//--- Reading the header
+			printf("Received header:\n");
 
-			printf("YAHOOO %s\n",name);
+			unsigned short namelen;
+			memcpy(&namelen, buff + sizeof(unsigned char), sizeof(unsigned short));
+			printf("   Got filename length: %d\n",namelen);
 
-			printf("%hhu\n",buff[0]);
-			printf("%hhu\n",buff[1]);
-			printf("%hhu\n",buff[2]);
-			printf("%hhu\n",buff[3]);
-			printf("%hhu\n",buff[4]);
-			printf("%hhu\n",buff[5]);
+			char* name = (char*)malloc(sizeof(char)*(namelen+1));
+			memcpy(name, buff + sizeof(unsigned char) + sizeof(unsigned short), namelen);
+			strcat(name, "\0");
+			printf("   Got the filename: %s\n",name);
+
+			unsigned int datalen;
+			memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
+			printf("   Got file size: %d\n", datalen);
+			printf("   Got file size: %d\n", htons(datalen));
+			printf("   Got file size: %d\n", ntohs(datalen));
+			printf("   Message size in bytes: %d\n", err);
+
+			//--- Receiving the packages
+
 		}
 
 }

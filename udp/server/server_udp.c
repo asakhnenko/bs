@@ -1,4 +1,5 @@
 #include<arpa/inet.h>
+#include<libgen.h>
 #include<netinet/in.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -9,6 +10,8 @@
 #include<sys/stat.h>
 
 #include"../Aufgabe2.h"
+
+#define MTU 1492
 /*
  * Checks whether file exists at filename
  * \param *filename path to the file
@@ -28,38 +31,26 @@ void init_addr(struct sockaddr_in* addr, int port)
 
 char* get_name(char* filepath)
 {
-  char *name;
-  char *search ="/";
-  char *temp;
-  char filepath_copy[strlen(filepath)];
-  strcpy(filepath_copy, filepath);
-  temp = strtok(filepath_copy, search);
-  while(temp != NULL)
-  {
-    temp = strtok(NULL, search);
-    if(temp != NULL)
-    {
-      name = temp;
-    }
-  }
-  //TODO:FREE THE NAME
-  char* ret = (char*)malloc(sizeof(char) * (strlen(name) + 1));
+  char* name = basename(filepath);
+  char* extension = ".tar.gz";
+  char* ret = (char*)malloc(sizeof(char) * (strlen(name) + strlen(extension) + 2));
   strcpy(ret, name);
+  strcat(ret, extension);
   return ret;
 }
 
 char* create_command(char *filepath)
 {
   char *tmp = "tar -cf tmp/";
-  char *command = (char*)malloc(sizeof(char)*2*(strlen(tmp) + strlen(filepath) + 2));
+  char *name = get_name(filepath);
+  char *command = (char*)malloc(sizeof(char)*(strlen(tmp) + strlen(filepath) +strlen(name) + 1));
 
   strcpy(command, tmp);
-  char *name = get_name(filepath);
   strcat(command, name);
-  strcat(command, ".tar.gz ");
+  strcat(command, " ");
   strcat(command, filepath);
 
-  free(name);
+  //free(name);
   return command;
 }
 
@@ -73,16 +64,14 @@ void create_archive(char *filepath)
 
 unsigned int get_file_size(char *name)
 {
-  char path[strlen(name)+32];
-
-  strcpy(path, "tmp/");
+  char path[strlen(name)+5];
+  strcpy(path, "./tmp/");
   strcat(path, name);
-  strcat(path, ".tar.gz");
 
   FILE *file = fopen(path,"rb");
   if(!file)
   {
-    printf("Could not find archived file");
+    printf("Could not find archived file\n");
   }
 
   fseek(file, 0, SEEK_END);
@@ -112,7 +101,6 @@ int main(int argc, char *argv[])
 
   char *filepath;
   filepath = argv[2];
-  printf("%s\n",filepath);
   if(!file_exists(filepath))
   {
       printf("Please give a valid file path\n");
@@ -171,30 +159,64 @@ int main(int argc, char *argv[])
       printf("Empty message received\n");
   }
 
+  //----------------------------------
+  // Answering the request
   unsigned char typID = buff[0];
   if(typID == REQUEST_T)
   {
-    printf("Request received\n");
+    printf("Request received\nCreating header:\n");
 
-    //--- Sending
+    //--- Sending Header
     // Creating message
     char *name = get_name(filepath);
+    printf("   File name: %s\n", name);
     unsigned short namelen = strlen(name);
+    printf("   File name length: %d\n", namelen);
     unsigned int datalen = get_file_size(name);
-
-    unsigned char* msg = malloc(sizeof(unsigned char) + sizeof(unsigned short) + namelen);
+    printf("   File size: %d\n", datalen);
+    unsigned char* msg = (char*)malloc(sizeof(unsigned char) + sizeof(unsigned short) + namelen + sizeof(unsigned int));
 
     memcpy(msg, &HEADER_T, sizeof(unsigned char));
     memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
     //strlen counts size till null-terminal
     memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, namelen);
-    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short) + namelen, datalen, sizeof(unsigned int));
+    memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short) + namelen, &datalen, sizeof(unsigned int));
 
     err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {
         perror("Send error: ");
     }
+    printf("   Message size in bytes: %d\n", err);
+    free(msg);
+
+    //----------------------------------
+    //--- Sending Files
+    printf("Sending the files\n");
+
+    unsigned char file_buff[MTU];
+    FILE *file = fopen("./tmp/test3.tar.gz","rb");
+    int i = 0;
+    int c;
+    unsigned int seq;
+    do
+    {
+      c = fgetc(file);
+      file_buff[i % MTU] = c;
+      if(i++ % MTU == 0)
+      {
+        seq = i/MTU;
+        printf("Sending %d-st package\n", seq);
+        unsigned char* file_pkg = (char*)malloc(sizeof(unsigned char) + sizeof(unsigned int) + MTU);
+        memcpy(file_pkg, &DATA_T, sizeof(unsigned char));
+        memcpy(file_pkg + sizeof(unsigned char), &seq, sizeof(unsigned int));
+        memcpy(file_pkg + sizeof(unsigned char) + sizeof(unsigned int), file_buff, MTU);
+        free(file_pkg);
+      }
+    }
+    while(c != EOF);
+
+
   }
 
   system("rm -r tmp");

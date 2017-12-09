@@ -16,9 +16,9 @@ int main(int argc, char *argv[])
 	unsigned int file_size;
 	struct sockaddr_in sender_addr, client_addr;
 	socklen_t addrlen;
-	char hash_512[SHA512_DIGEST_LENGTH];
-	unsigned char buffer[BUFFER_SIZE_MTU_PPPeE], *file_buffer;
-	FILE *fp;
+	char hash_512[SHA512_DIGEST_LENGTH], *hash_512_string, *file_name, *archive_file_name;
+	unsigned char send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer, *msg;
+	FILE *fp;	
 
 	// check number of arguments
 	if(argc!=3)
@@ -37,23 +37,46 @@ int main(int argc, char *argv[])
   	}
 
   	// extract file path
-  	char *filepath;
-	filepath = argv[2];
-    if(!file_exists(filepath))
+  	char *file_path;
+	file_path = argv[2];
+    if(!file_exists(file_path))
 	{
-		printf("ERROR: the file '%s' does not exist. Please provide a valid file path.\n", filepath);
+		printf("ERROR: the file '%s' does not exist. Please provide a valid file path.\n", file_path);
 	   	return 0;
 	}
 
 	printf("start sender...\n");
-	printf("archive %s...\n", filepath);
 
-	archive(get_file_name(filepath), filepath);
+	file_name = get_file_name(file_path);
+	archive_file_name = get_archive_name(file_name);
 
-	printf(filename_str, get_file_name(filepath));
-	file_size = get_file_size(get_file_name(filepath));
+	printf("archive %s...\n", file_path);
+	archive(file_name, file_path);
+
+	printf(filename_str, file_name);
+
+	file_size = get_file_size(archive_file_name);
 	printf(filesize_str, file_size);
-	printf("CP %s\n", get_archive_name(get_file_name(filepath)));
+	file_buffer = malloc(file_size);
+	fp = fopen(archive_file_name, "rb");
+	if(fp==NULL)
+	{
+
+		printf("ERROR: could not open file: %s\n", archive_file_name);
+		fclose(fp);
+		return 0;
+	}
+
+	fread(file_buffer, sizeof(char), file_size, fp);
+	SHA512(file_buffer, file_size, hash_512);
+
+	hash_512_string = create_sha512_string(hash_512);
+	printf(sender_sha512, hash_512_string);
+
+
+	fclose(fp);
+
+	//printf("CP %s\n", get_archive_name(get_file_name(file_path)));
 	
 	//TODO
 	/**fp = fopen(archive_file_name, "r");
@@ -115,11 +138,17 @@ int main(int argc, char *argv[])
 	//printf("msg: %s\n", buffer);
 
 
+
 	write(newsock_destriptor, "connection established!", strlen("connection established!") + 1);
+
+	//send_buffer
 
 	close(newsock_destriptor);	
 	close(socket_descriptor);
 
+	free(hash_512_string);
+	free(archive_file_name);
+	free(file_buffer);
 }
 
 

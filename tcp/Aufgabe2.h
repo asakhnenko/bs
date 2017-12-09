@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <libgen.h> // new
 
-static const size_t BUFFER_SIZE_MTU_PPPeE = 1492;
+static const size_t BUFFER_SIZE_MTU_PPPoE = 1492;
 
 static const char SHA512_CMP_OK = 0;
 static const char SHA512_CMP_ERROR = -1;
@@ -75,15 +75,10 @@ char *get_archive_name(char *name)
 	return archive_file_name;
 }
 
-unsigned int get_file_size(char *name)
+unsigned int get_file_size(char *archive_file_name)
 {
 	unsigned int file_size;
-	char *archive_file_name;
 	FILE *fp;
-
-	archive_file_name = malloc(strlen(name) + 8); // or 9?
-	strncpy(archive_file_name, name, strlen(name));
-	strncat(archive_file_name, ".tar.gz", 7); // or 8?
 
 	fp = fopen(archive_file_name, "r");
 	if(fp==NULL)
@@ -91,7 +86,6 @@ unsigned int get_file_size(char *name)
 
 		printf("ERROR: could not open file: %s\n", archive_file_name);
 		fclose(fp);
-		free(archive_file_name);
 		return -1;
 	}
 
@@ -99,13 +93,11 @@ unsigned int get_file_size(char *name)
 	file_size = ftell(fp);
 
 	fclose(fp);
-	free(archive_file_name);
 	return file_size;
 }
 
 char* archive(char *filename, char *filepath)
 {
-  printf("inside..\n");
   char *command;
   command = malloc(20 + strlen(filename) + strlen(filepath));
   sprintf(command, "tar -zcf %s.tar.gz %s", filename, filepath);

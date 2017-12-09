@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 {
 	int socket_descriptor, port, err, byte_cnt;
 	struct sockaddr_in dest_addr;
-	char *input_addr, send_buffer[BUFFER_SIZE_MTU_PPPeE], rcv_buffer[BUFFER_SIZE_MTU_PPPeE];
+	char *input_addr, send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE];
 	socklen_t addrlen;
 
 	// check number of arguments
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	//printf("sending msg '%s'...\n", send_buffer);
 	//byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
 
-	read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPeE);
+	read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
 
 	printf("received: %s\n", rcv_buffer);
 

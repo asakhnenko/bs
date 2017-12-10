@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
 
 		printf("ERROR: could not open file: %s\n", archive_file_name);
 		fclose(fp);
+		free(archive_file_name);
+		free(file_buffer);
 		return 0;
 	}
 
@@ -81,6 +83,9 @@ int main(int argc, char *argv[])
 	if(socket_descriptor < 0)
 	{
 		printf("ERROR: socket initialization failed!\n");
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
 		return 0;
 	}
 
@@ -92,6 +97,9 @@ int main(int argc, char *argv[])
 	if(err < 0)
 	{
 		printf("ERROR: binding failed!\n");
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
 		return 0;
 	}
 
@@ -99,6 +107,9 @@ int main(int argc, char *argv[])
 	if(res<0)
 	{
 		printf("ERROR: listening failed!\n");
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
 		return 0;
 	}
 
@@ -108,6 +119,9 @@ int main(int argc, char *argv[])
 	if(newsock_destriptor<0)
 	{
 		printf("ERROR: accepting failed!\n");
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
 		return 0;
 	}
 
@@ -120,7 +134,14 @@ int main(int argc, char *argv[])
 	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
 	printf("send header...\n");
 	bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
-	
+	if(bytes_sent < 0)
+	{
+		printf(packet_error);
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
+		return 0;
+	}
 	// send file
 	printf("send file...\n");
 	byte_cnt = 0;
@@ -130,11 +151,27 @@ int main(int argc, char *argv[])
 		{
 			memcpy(send_buffer, file_buffer + byte_cnt, file_size - byte_cnt);
 			bytes_sent = write(newsock_destriptor, send_buffer, file_size - byte_cnt);
+			if(bytes_sent < 0)
+			{
+				printf(packet_error);
+				free(hash_512_string);
+				free(archive_file_name);
+				free(file_buffer);
+				return 0;
+			}
 			byte_cnt = byte_cnt + bytes_sent;
 		} else
 		{
 			memcpy(send_buffer, file_buffer + byte_cnt, BUFFER_SIZE_MTU_PPPoE);
 			bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
+			if(bytes_sent < 0)
+			{
+				printf(packet_error);
+				free(hash_512_string);
+				free(archive_file_name);
+				free(file_buffer);
+				return 0;
+			}
 			byte_cnt = byte_cnt + bytes_sent;
 		}
 	}
@@ -143,22 +180,34 @@ int main(int argc, char *argv[])
 	// send sha512
 	memcpy(send_buffer, hash_512_string, 129);
 	bytes_sent = write(newsock_destriptor, send_buffer, 129);
+	if(bytes_sent < 0)
+	{
+		printf(packet_error);
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
+		return 0;
+	}
 	printf("send sha-512-String (%d bytes)...\n", bytes_sent);
 
 	// receive result of sha comparison
 	bytes_sent = read(newsock_destriptor, &rcv_sha_comp, 1);
+	if(bytes_sent < 0)
+	{
+		printf(packet_error);
+		free(hash_512_string);
+		free(archive_file_name);
+		free(file_buffer);
+		return 0;
+	}
 	printf("received result of sha-512-String comparison...\n");
 	if(rcv_sha_comp == SHA512_CMP_OK)
 	{
 		printf(SHA512_OK);
-	} else if(rcv_sha_comp == SHA512_CMP_ERROR)
-	{
-		printf(SHA512_ERROR);
 	} else
 	{
-		printf("FAIL!!\n");
+		printf(SHA512_ERROR);
 	}
-
 
 	close(newsock_destriptor);	
 	close(socket_descriptor);
@@ -167,7 +216,3 @@ int main(int argc, char *argv[])
 	free(archive_file_name);
 	free(file_buffer);
 }
-
-
-
-

@@ -12,5 +12,8 @@ received_dir:
 clean:
 	rm -rf sender receiver received *gz
 
-valgrind:
+valgrind_sender:
 	valgrind --leak-check=yes ./sender 9090 send_dir
+
+valgrind_receiver:
+	valgrind --leak-check=yes ./receiver 127.0.0.1 9090

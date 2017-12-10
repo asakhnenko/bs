@@ -1,6 +1,7 @@
 #include<arpa/inet.h>
 #include<libgen.h>
 #include<netinet/in.h>
+#include<openssl/sha.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -11,7 +12,6 @@
 
 #include"../Aufgabe2.h"
 
-#define MTU 1492
 /*
  * Checks whether file exists at filename
  * \param *filename path to the file
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
   {
       perror("Socket was not created: ");
   }
-  printf("Socket is initialized\n");
+  printf("\nSocket is initialized\n");
 
   //--- Set time limit
   struct timeval timeout;
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 
   //--- Receiving request
   unsigned char buff[2048];
-  printf("Waiting for connection...\n");
+  printf("\nWaiting for connection...\n");
   err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
   if(err<0)
   {
@@ -164,17 +164,17 @@ int main(int argc, char *argv[])
   unsigned char typID = buff[0];
   if(typID == REQUEST_T)
   {
-    printf("Request received\nCreating header:\n");
+    printf("\nRequest received\n\nCreating header:\n");
 
     //--- Sending Header
     // Creating message
     char *name = get_name(filepath);
-    printf("   File name: %s\n", name);
+    printf(filename_str, name);
     unsigned short namelen = strlen(name);
-    printf("   File name length: %d\n", namelen);
     unsigned int datalen = get_file_size(name);
-    printf("   File size: %d\n", datalen);
-    unsigned char* msg = (char*)malloc(sizeof(unsigned char) + sizeof(unsigned short) + namelen + sizeof(unsigned int));
+    printf(filesize_str, datalen);
+    int msg_size = sizeof(unsigned char) + sizeof(unsigned short) + namelen + sizeof(unsigned int);
+    unsigned char* msg = (char*)malloc(msg_size);
 
     memcpy(msg, &HEADER_T, sizeof(unsigned char));
     memcpy(msg + sizeof(unsigned char), &namelen, sizeof(unsigned short));
@@ -182,19 +182,20 @@ int main(int argc, char *argv[])
     memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short), name, namelen);
     memcpy(msg + sizeof(unsigned char) + sizeof(unsigned short) + namelen, &datalen, sizeof(unsigned int));
 
-    err = sendto(socket_descriptor, msg, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
+    err = sendto(socket_descriptor, msg, msg_size, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {
         perror("Send error: ");
     }
-    printf("   Message size in bytes: %d\n", err);
+    printf("Message size in bytes: %d\n", err);
     free(msg);
 
     //----------------------------------
     //--- Sending Files
-    printf("Sending the files\n");
+    printf("\nSending the files:\n");
 
     unsigned char file_buff[MTU];
+    //TODO: REMOVE HARDCODE
     FILE *file = fopen("./tmp/test3.tar.gz","rb");
     int i = 0;
     int c;
@@ -207,16 +208,50 @@ int main(int argc, char *argv[])
       {
         seq = i/MTU;
         printf("Sending %d-st package\n", seq);
-        unsigned char* file_pkg = (char*)malloc(sizeof(unsigned char) + sizeof(unsigned int) + MTU);
+        int file_pkg_size = sizeof(unsigned char) + sizeof(unsigned int) + MTU;
+        unsigned char* file_pkg = (char*)malloc(file_pkg_size);
         memcpy(file_pkg, &DATA_T, sizeof(unsigned char));
         memcpy(file_pkg + sizeof(unsigned char), &seq, sizeof(unsigned int));
+        //TODO: Clean the array after done
         memcpy(file_pkg + sizeof(unsigned char) + sizeof(unsigned int), file_buff, MTU);
+        err = sendto(socket_descriptor, file_pkg, file_pkg_size, 0, (struct sockaddr*) &dest_addr, socklen);
+        if(err<0)
+        {
+            perror("Send error: ");
+        }
         free(file_pkg);
       }
     }
     while(c != EOF);
+    fclose(file);
 
 
+    //----------------------------------
+    //--- SHA Value
+    //TODO: REMOVE HARDCODE
+    printf("\nCreating message with SHA\n");
+
+    // Calculating SHA
+    file = fopen("./tmp/test3.tar.gz","rb");
+    unsigned char fbuff[datalen];
+    fread(fbuff, sizeof(char), datalen, file);
+    char hash_512[SHA512_DIGEST_LENGTH];
+    SHA512(fbuff, datalen, hash_512);
+    char *hash = create_sha512_string(hash_512);
+    printf(sender_sha512, hash);
+
+    // Creating a message
+    msg_size = sizeof(unsigned char) + SHA512_DIGEST_LENGTH;
+    msg = (char*)malloc(msg_size);
+    memcpy(msg, &SHA512_T, sizeof(unsigned char));
+    memcpy(msg + sizeof(unsigned char), hash, SHA512_DIGEST_LENGTH);
+    err = sendto(socket_descriptor, msg, msg_size, 0, (struct sockaddr*) &dest_addr, socklen);
+    if(err<0)
+    {
+        perror("Send error: ");
+    }
+    printf("Message size in bytes: %d\n", err);
+    free(msg);
   }
 
   system("rm -r tmp");

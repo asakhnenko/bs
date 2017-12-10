@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     {
         perror("Socket was not created: ");
     }
-    printf("Socket is initialized\n");
+    printf("\nSocket is initialized\n");
 
     //--- Fill in sockaddr_in
     init_addr(&dest_addr, port, server_addr);
@@ -63,12 +63,12 @@ int main(int argc, char *argv[])
     {
       perror("Send error: ");
     }
-		printf("Request sent\n");
+		printf("\nRequest sent\n");
 
 		//----------------------------------
 		//--- Receiving header
 		unsigned char buff[2048];
-		printf("Waiting for response...\n");
+		printf("\nWaiting for response...\n");
 		err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 		if(err<0)
 		{
@@ -85,25 +85,73 @@ int main(int argc, char *argv[])
 		if(typID == HEADER_T)
 		{
 			//--- Reading the header
-			printf("Received header:\n");
+			printf("\nReceived header:\n");
 
 			unsigned short namelen;
 			memcpy(&namelen, buff + sizeof(unsigned char), sizeof(unsigned short));
-			printf("   Got filename length: %d\n",namelen);
 
 			char* name = (char*)malloc(sizeof(char)*(namelen+1));
 			memcpy(name, buff + sizeof(unsigned char) + sizeof(unsigned short), namelen);
 			strcat(name, "\0");
-			printf("   Got the filename: %s\n",name);
+			printf(filename_str,name);
 
 			unsigned int datalen;
 			memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
-			printf("   Got file size: %d\n", datalen);
-			printf("   Got file size: %d\n", htons(datalen));
-			printf("   Got file size: %d\n", ntohs(datalen));
-			printf("   Message size in bytes: %d\n", err);
+			printf(filesize_str, datalen);
 
-			//--- Receiving the packages
+			printf("Message size in bytes: %d\n", err);
+
+			FILE *file = fopen("received/test3.tar.gz","wb+");
+			if(!file)
+			{
+				perror("File wasn't created");
+			}
+
+			unsigned int seq;
+			do
+			{
+				//--- Receiving the packages
+				//TODO: Clean the buffer
+				err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+				if(err<0)
+				{
+					perror("Connection error: ");
+				}
+				else if(err == 0)
+				{
+					printf("Empty message received\n");
+				}
+
+				typID = buff[0];
+				if(typID == DATA_T)
+				{
+					memcpy(&seq, buff + sizeof(unsigned char), sizeof(unsigned int));
+					unsigned char file_buff[MTU];
+					memcpy(file_buff, buff + sizeof(unsigned char) + sizeof(unsigned int), MTU);
+					fwrite(file_buff, sizeof(unsigned char), MTU, file);
+				}
+			}
+			while(seq != datalen/MTU);
+
+			//----------------------------------
+	    //--- SHA Value
+			// Receiving the Message
+			err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+			if(err<0)
+			{
+				perror("Connection error: ");
+			}
+			else if(err == 0)
+			{
+				printf("Empty message received\n");
+			}
+
+			typID = buff[0];
+			if(typID == SHA512_T)
+			{
+				unsigned char hash_512[SHA512_DIGEST_LENGTH];
+				
+			}
 
 		}
 

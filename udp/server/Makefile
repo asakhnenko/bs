@@ -1,8 +1,10 @@
-server_udp: server_udp.o
-	gcc -o server_udp server_udp.o
+default: sender_udp receiver_udp
 
-server_udp.o:
-	gcc -c server_udp.c
+sender_udp: sender_udp.c
+	gcc -o sender_udp sender_udp.c -lssl -lcrypto
+
+receiver_udp: receiver_udp.c
+	gcc -o receiver_udp receiver_udp.c -lssl -lcrypto
 
 clean:
-	rm server_udp server_udp.o
+	rm sender_udp

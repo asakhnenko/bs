@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	printf("connected to server...\n");
+
 	// receive header
 	bytes_received = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
 	memcpy(&rcv_len_file_name, rcv_buffer, 2);
@@ -70,7 +72,7 @@ int main(int argc, char *argv[])
 	printf(filesize_str, rcv_file_size);
 
 	bytes_header = 2 + rcv_len_file_name + 4 + 1; // 1 more...
-
+	printf("received header...\n");
 
 	// receive data
 	file_buffer = malloc(rcv_file_size);
@@ -104,7 +106,7 @@ int main(int argc, char *argv[])
 		printf("ERROR: creating file '%s' failed!\n", path_name_buffer);
 	}
 	fwrite(file_buffer, sizeof(char), rcv_file_size, fp);
-	printf("created: %s...\n", path_name_buffer);
+	printf("created %s...\n", path_name_buffer);
 	fclose(fp);
 
 	// SHA512
@@ -116,13 +118,13 @@ int main(int argc, char *argv[])
 	if(strcmp(hash_512_string, rcv_hash_512_string) == 0)
 	{
 		printf(SHA512_OK);
-		printf("sending result of sha comparison to sender (%c)...\n", SHA512_CMP_OK);
-		write(socket_descriptor, &SHA512_OK, 1);
+		printf("sending result of sha comparison to sender...\n");
+		write(socket_descriptor, &SHA512_CMP_OK, 1);
 
 	} else
 	{
 		printf(SHA512_ERROR);
-		printf("sending result of sha comparison to sender (%c)...\n", SHA512_CMP_ERROR);
+		printf("sending result of sha comparison to sender...\n");
 		write(socket_descriptor, &SHA512_CMP_ERROR, 1);
 	}
 

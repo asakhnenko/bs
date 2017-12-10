@@ -11,13 +11,14 @@
 
 int main(int argc, char *argv[])
 {
-	int socket_descriptor, port, err, byte_cnt;
+	int socket_descriptor, port, err, bytes_received, byte_cnt, bytes_header;
 	unsigned int rcv_file_size;
 	unsigned short rcv_len_file_name;
 	struct sockaddr_in dest_addr;
-	char *input_addr, *rcv_file_name;
-	unsigned char *send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE];
+	char *input_addr, *rcv_file_name, *path_name_buffer;
+	unsigned char *send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer;
 	socklen_t addrlen;
+	FILE *fp;
 
 	// check number of arguments
 	if(argc!=3)
@@ -57,27 +58,65 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	// send msg
-	//strcpy(send_buffer,"hello, world!");
-	//printf("sending msg '%s'...\n", send_buffer);
-	//byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
-
-	byte_cnt = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
+	// receive header
+	bytes_received = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
 	memcpy(&rcv_len_file_name, rcv_buffer, 2);
-	printf("received header...\n");
-	printf("length of file name: %d\n", rcv_len_file_name);
 	rcv_file_name = malloc(rcv_len_file_name+1);
 	memcpy(rcv_file_name, rcv_buffer+2, rcv_len_file_name);
 	strcat(rcv_file_name, "\0");
 	printf(filename_str, rcv_file_name);
 
 	memcpy(&rcv_file_size, rcv_buffer+2+rcv_len_file_name, 4);
+	printf(filesize_str, rcv_file_size);
 
-	printf("length of file: %d\n", rcv_file_size);
-
-	
+	bytes_header = 2 + rcv_len_file_name + 4 + 1; // 1 more...
 
 
+	// receive data
+	file_buffer = malloc(rcv_file_size);
+	byte_cnt = 0;
+
+	// extract data from first packet if available
+	if(bytes_received>bytes_header)
+	{
+		memcpy(file_buffer, rcv_buffer+bytes_header, bytes_received - bytes_header);
+		byte_cnt = byte_cnt + bytes_received - bytes_header;
+		printf("more bytes than just header! Header size: %d. Bytes received: %d. Bytes as data: %d\n", bytes_header, bytes_received, byte_cnt);
+
+	}
+
+	while(byte_cnt < rcv_file_size)
+	{
+		if(rcv_file_size - byte_cnt < BUFFER_SIZE_MTU_PPPoE)
+		{
+			bytes_received = read(socket_descriptor, rcv_buffer, rcv_file_size - byte_cnt);
+			memcpy(file_buffer + byte_cnt, rcv_buffer, rcv_file_size - byte_cnt);
+			byte_cnt = rcv_file_size;
+		} else
+		{
+			bytes_received = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
+			memcpy(file_buffer + byte_cnt, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
+			byte_cnt = byte_cnt + BUFFER_SIZE_MTU_PPPoE;
+		}
+		printf("received packet of size %d. Byte cnt: %d\n", bytes_received ,byte_cnt);
+	}
+
+	// store data in file
+	path_name_buffer = malloc(strlen(rcv_file_name) + 10);
+	strncpy(path_name_buffer, "received/", 9);
+	strncat(path_name_buffer, rcv_file_name, strlen(rcv_file_name));
+
+	fp = fopen(path_name_buffer, "w+");
+	if(fp == NULL)
+	{
+		printf("ERROR: creating file '%s' failed!\n", path_name_buffer);
+	}
+	fwrite(file_buffer, sizeof(char), rcv_file_size, fp);
+	printf("created: %s\n", path_name_buffer);
+	fclose(fp);
+
+	free(file_buffer);
+	free(path_name_buffer);
 	free(rcv_file_name);
 	close(socket_descriptor);
 

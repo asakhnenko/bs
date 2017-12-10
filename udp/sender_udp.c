@@ -10,7 +10,7 @@
 #include<sys/socket.h>
 #include<sys/stat.h>
 
-#include"../Aufgabe2.h"
+#include"Aufgabe2.h"
 
 /*
  * Checks whether file exists at filename

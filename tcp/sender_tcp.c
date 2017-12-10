@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[])
 {
-	int socket_descriptor, err, res, newsock_destriptor, byte_cnt;
+	int socket_descriptor, err, res, newsock_destriptor, bytes_sent, byte_cnt;
 	unsigned int file_size;
 	unsigned short len_file_name;
 	struct sockaddr_in sender_addr, client_addr;
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 	printf("archive %s...\n", file_path);
 	archive(file_name, file_path);
 
-	printf(filename_str, file_name);
+	printf(filename_str, archive_file_name);
 
 	file_size = get_file_size(archive_file_name);
 	printf(filesize_str, file_size);
@@ -76,22 +76,6 @@ int main(int argc, char *argv[])
 
 
 	fclose(fp);
-
-	//printf("CP %s\n", get_archive_name(get_file_name(file_path)));
-	
-	//TODO
-	/**fp = fopen(archive_file_name, "r");
-	if(fp==NULL)
-	{
-
-		printf("ERROR: could not open file: %s\n", archive_file_name);
-		fclose(fp);
-		free(archive_file_name);
-		return -1;
-	}
-
-	printf(sender_sha512, );*/
-
 
 	// create socket
 	socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
@@ -129,26 +113,38 @@ int main(int argc, char *argv[])
 	}
 
 	printf("Received connection from %s!\n", inet_ntoa(client_addr.sin_addr));
-	//byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPoE);
-	//if(byte_cnt <0)
-	//{
-	//	printf("ERROR: receiving failed!\n");
-	//	return 0;
-	//}
-	//printf("received %d bytes\n", byte_cnt);
-	//printf("msg: %s\n", buffer);
 	
+	// send header
 	len_file_name = strlen(archive_file_name);
 	memcpy(send_buffer, &len_file_name, 2);
 	memcpy(send_buffer + 2, archive_file_name, len_file_name);
 	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
-	printf("send header...\n");
-	write(newsock_destriptor, send_buffer, 6 + len_file_name + 1);
+	printf("send header");
+	bytes_sent = write(newsock_destriptor, send_buffer, 6 + len_file_name + 1);
+	printf("(%d bytes sent)...\n", bytes_sent);
 	
+	// send data
+	printf("send data...");
+	byte_cnt = 0;
+	while(byte_cnt<file_size)
+	{
+		if(file_size - byte_cnt < BUFFER_SIZE_MTU_PPPoE)
+		{
+			memcpy(send_buffer, file_buffer + byte_cnt, file_size - byte_cnt);
+			bytes_sent = write(newsock_destriptor, send_buffer, file_size - byte_cnt);
+			byte_cnt = file_size;
+		} else
+		{
+			memcpy(send_buffer, file_buffer + byte_cnt, BUFFER_SIZE_MTU_PPPoE);
+			bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
+			byte_cnt = byte_cnt + BUFFER_SIZE_MTU_PPPoE;
+		}
+		printf("send packet. Bytes sent: %d. Byte cnt at: %d\n", bytes_sent, byte_cnt);
+	}
+	printf("(%d bytes successfully sent)...\n", byte_cnt);
 
-
-	//close(newsock_destriptor);	
-	//close(socket_descriptor);
+	close(newsock_destriptor);	
+	close(socket_descriptor);
 
 	free(hash_512_string);
 	free(archive_file_name);

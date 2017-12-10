@@ -276,7 +276,10 @@ int main(int argc, char *argv[])
         printf(SHA512_ERROR);
       }
     }
+    free(name);
   }
 
+  // close(socket_descriptor);
+  // close(dest_socket_descriptor);
   system("rm -r tmp");
 }

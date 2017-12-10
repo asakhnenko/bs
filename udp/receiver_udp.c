@@ -99,7 +99,6 @@ int main(int argc, char *argv[])
 			unsigned int datalen;
 			memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
 			printf(filesize_str, datalen);
-
 			printf("Message size in bytes: %d\n", err);
 
 			FILE *file = fopen("received/test3.tar.gz","wb+");
@@ -111,6 +110,7 @@ int main(int argc, char *argv[])
 			//--- Receiving the packages
 			printf("\nPreparing to receive packages:\n");
 			unsigned int seq;
+      unsigned int referrence = 0;
 			do
 			{
 				//TODO: Clean the buffer
@@ -128,6 +128,10 @@ int main(int argc, char *argv[])
 				if(typID == DATA_T)
 				{
 					memcpy(&seq, buff + sizeof(unsigned char), sizeof(unsigned int));
+          if(seq != referrence++)
+          {
+            perror(order_error, seq, referrence);
+          }
 					printf("Receiving %d-st package\n", seq);
 					unsigned char file_buff[MTU];
 					memcpy(file_buff, buff + sizeof(unsigned char) + sizeof(unsigned int), MTU);

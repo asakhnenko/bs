@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 	if(argc!=3)
 	{
 		printf("invalid number of args. Expected 2, received %d.\n", argc-1);
+		printf("start the receiver as follows: ./receiver  ");
 		return 0;
 	}
 
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
 	timeout.tv_sec = 10;
 	timeout.tv_usec = 0;
 
-	err = setsockopt(newsock_destriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval));
+	err = setsockopt(socket_descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval));
 	if(err < 0)
 	{
 		printf(timeout_error);

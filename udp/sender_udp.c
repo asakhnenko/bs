@@ -12,16 +12,6 @@
 
 #include"Aufgabe2.h"
 
-/*
- * Checks whether file exists at filename
- * \param *filename path to the file
- */
-int file_exists(const char *filepath)
-{
-  struct stat buffer;
-  return (stat(filepath,&buffer) == 0);
-}
-
 void init_addr(struct sockaddr_in* addr, int port)
 {
 	addr->sin_family = AF_INET;
@@ -43,6 +33,7 @@ char* create_command(char *filepath)
 {
   char *tmp = "tar -cf tmp/";
   char *name = get_name(filepath);
+  printf(" %s\n", name);
   char *command = (char*)malloc(sizeof(char)*(strlen(tmp) + strlen(filepath) +strlen(name) + 1));
 
   strcpy(command, tmp);
@@ -56,7 +47,7 @@ char* create_command(char *filepath)
 
 void create_archive(char *filepath)
 {
-	printf("Creating an archive\n");
+	printf("\nCreating an archive ");
 	char* command = create_command(filepath);
 	system(command);
 	free(command);
@@ -203,28 +194,35 @@ int main(int argc, char *argv[])
     do
     {
       c = fgetc(file);
-      file_buff[i % MTU] = c;
+      file_buff[i % MTU] = (unsigned char)c;
+      // Split into packages
       if(i++ % MTU == 0)
       {
+        // Construct message
         seq = i/MTU;
-        printf("Sending %d-st package\n", seq);
-        int file_pkg_size = sizeof(unsigned char) + sizeof(unsigned int) + MTU;
+        // Check if it is the last package
+        unsigned int pkg_size = get_pkg_size(seq, datalen);
+        printf("Sending %d-st package of size %d\n", seq, pkg_size);
+        unsigned int file_pkg_size = sizeof(unsigned char) + sizeof(unsigned int) + pkg_size;
         unsigned char* file_pkg = (char*)malloc(file_pkg_size);
         memcpy(file_pkg, &DATA_T, sizeof(unsigned char));
         memcpy(file_pkg + sizeof(unsigned char), &seq, sizeof(unsigned int));
-        //TODO: Clean the array after done
-        memcpy(file_pkg + sizeof(unsigned char) + sizeof(unsigned int), file_buff, MTU);
+        memcpy(file_pkg + sizeof(unsigned char) + sizeof(unsigned int), file_buff, pkg_size);
+
+        // Send message
         err = sendto(socket_descriptor, file_pkg, file_pkg_size, 0, (struct sockaddr*) &dest_addr, socklen);
         if(err<0)
         {
             perror("Send error: ");
         }
+
+        //Clean up
         free(file_pkg);
+        memset(file_buff, 0, MTU);
       }
     }
     while(c != EOF);
     fclose(file);
-
 
     //----------------------------------
     //--- SHA Value
@@ -254,7 +252,7 @@ int main(int argc, char *argv[])
     free(msg);
 
     //Receiving a response
-    err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+    err = recvfrom(socket_descriptor, buff, sizeof(buff), 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
     if(err<0)
     {
         perror("Connection error: ");
@@ -279,7 +277,9 @@ int main(int argc, char *argv[])
     free(name);
   }
 
-  // close(socket_descriptor);
+  //close(socket_descriptor);
   // close(dest_socket_descriptor);
+  printf("\nFile contains: \n");
+  system("cat tmp/test3.tar.gz");
   system("rm -r tmp");
 }

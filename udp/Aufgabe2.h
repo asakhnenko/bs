@@ -36,4 +36,29 @@ static char* create_sha512_string(unsigned char* sha512) {
     return result;
 }
 
+//--------------------------
+/*
+ * Checks whether file exists at filename
+ * \param *filename path to the file
+ */
+int file_exists(const char *filepath)
+{
+  struct stat buffer;
+  return (stat(filepath,&buffer) == 0);
+}
+
+unsigned int get_pkg_size(unsigned int seq, unsigned int datalen)
+{
+  unsigned int size;
+  if(seq == datalen/MTU)
+  {
+    size = datalen - MTU*seq;
+  }
+  else
+  {
+    size = MTU;
+  }
+  return size;
+}
+
 #endif

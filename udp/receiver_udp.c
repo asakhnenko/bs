@@ -106,15 +106,18 @@ int main(int argc, char *argv[])
 			{
 				perror("File wasn't created");
 			}
+			// Clean up
+			free(name);
 
 			//--- Receiving the packages
 			printf("\nPreparing to receive packages:\n");
 			unsigned int seq;
       unsigned int referrence = 0;
+			unsigned char pkg_buff[2048];
 			do
 			{
 				//TODO: Clean the buffer
-				err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+				err = recvfrom(socket_descriptor, pkg_buff, sizeof(pkg_buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 				if(err<0)
 				{
 					perror("Connection error: ");
@@ -124,26 +127,33 @@ int main(int argc, char *argv[])
 					printf("Empty message received\n");
 				}
 
-				typID = buff[0];
+				typID = pkg_buff[0];
 				if(typID == DATA_T)
 				{
-					memcpy(&seq, buff + sizeof(unsigned char), sizeof(unsigned int));
+					memcpy(&seq, pkg_buff + sizeof(unsigned char), sizeof(unsigned int));
           if(seq != referrence++)
           {
-            perror(order_error, seq, referrence);
+            printf(order_error, seq, referrence);
           }
-					printf("Receiving %d-st package\n", seq);
-					unsigned char file_buff[MTU];
-					memcpy(file_buff, buff + sizeof(unsigned char) + sizeof(unsigned int), MTU);
-					fwrite(file_buff, sizeof(unsigned char), MTU, file);
+					unsigned int pkg_size = get_pkg_size(seq, datalen);
+					printf("Receiving %d-st package of size %d\n", seq, pkg_size);
+					unsigned char file_buff[pkg_size];
+					memcpy(file_buff, pkg_buff + sizeof(unsigned char) + sizeof(unsigned int), pkg_size);
+					fwrite(file_buff, sizeof(unsigned char), pkg_size, file);
 				}
 			}
 			while(seq != datalen/MTU);
 
+			fseek(file, 0, SEEK_END);
+		  unsigned int size = ftell(file);
+		  fclose(file);
+
+			printf("Size of the created file: %d\n", size);
+
 			//----------------------------------
 	    //--- SHA Value
 			// Receiving the Message
-			err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+			err = recvfrom(socket_descriptor, buff, sizeof(buff), 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 			if(err<0)
 			{
 				perror("Connection error: ");
@@ -191,5 +201,6 @@ int main(int argc, char *argv[])
 			}
 
 		}
-
+		printf("\nFile contains: \n");
+		system("cat received/test3.tar.gz");
 }

@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	unsigned int rcv_file_size;
 	unsigned short rcv_len_file_name;
 	struct sockaddr_in dest_addr;
-	char *input_addr, *rcv_file_name, *path_name_buffer, hash_512[SHA512_DIGEST_LENGTH], *hash_512_string;
+	char *input_addr, *rcv_file_name, *path_name_buffer, hash_512[SHA512_DIGEST_LENGTH], *hash_512_string, rcv_hash_512_string[129];
 	unsigned char *send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer;
 	socklen_t addrlen;
 	FILE *fp;
@@ -93,11 +93,6 @@ int main(int argc, char *argv[])
 
 	printf("received file (%d bytes)...\n", byte_cnt);
 
-	// SHA512
-	SHA512(file_buffer, rcv_file_size, hash_512);
-	hash_512_string = create_sha512_string(hash_512);
-	printf(receiver_sha512, hash_512_string);
-
 	// store data in file
 	path_name_buffer = malloc(strlen(rcv_file_name) + 10);
 	strncpy(path_name_buffer, "received/", 9);
@@ -111,6 +106,25 @@ int main(int argc, char *argv[])
 	fwrite(file_buffer, sizeof(char), rcv_file_size, fp);
 	printf("created: %s...\n", path_name_buffer);
 	fclose(fp);
+
+	// SHA512
+	SHA512(file_buffer, rcv_file_size, hash_512);
+	hash_512_string = create_sha512_string(hash_512);
+	printf(receiver_sha512, hash_512_string);
+
+	bytes_received = read(socket_descriptor, rcv_hash_512_string, 129);
+	if(strcmp(hash_512_string, rcv_hash_512_string) == 0)
+	{
+		printf(SHA512_OK);
+		printf("sending result of sha comparison to sender (%c)...\n", SHA512_CMP_OK);
+		write(socket_descriptor, &SHA512_OK, 1);
+
+	} else
+	{
+		printf(SHA512_ERROR);
+		printf("sending result of sha comparison to sender (%c)...\n", SHA512_CMP_ERROR);
+		write(socket_descriptor, &SHA512_CMP_ERROR, 1);
+	}
 
 	free(file_buffer);
 	free(path_name_buffer);

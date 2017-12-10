@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	unsigned short len_file_name;
 	struct sockaddr_in sender_addr, client_addr;
 	socklen_t addrlen;
-	char hash_512[SHA512_DIGEST_LENGTH], *hash_512_string;
+	char hash_512[SHA512_DIGEST_LENGTH], *hash_512_string, rcv_sha_comp;
 	unsigned char send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer, *msg, *file_name, *archive_file_name;
 	FILE *fp;	
 
@@ -74,7 +74,6 @@ int main(int argc, char *argv[])
 	hash_512_string = create_sha512_string(hash_512);
 	printf(sender_sha512, hash_512_string);
 
-
 	fclose(fp);
 
 	// create socket
@@ -119,9 +118,8 @@ int main(int argc, char *argv[])
 	memcpy(send_buffer, &len_file_name, 2);
 	memcpy(send_buffer + 2, archive_file_name, len_file_name);
 	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
-	printf("send header");
+	printf("send header...");
 	bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
-	printf("(%d bytes sent)...\n", bytes_sent);
 	
 	// send data
 	printf("send data...");
@@ -132,16 +130,26 @@ int main(int argc, char *argv[])
 		{
 			memcpy(send_buffer, file_buffer + byte_cnt, file_size - byte_cnt);
 			bytes_sent = write(newsock_destriptor, send_buffer, file_size - byte_cnt);
-			byte_cnt = file_size;
+			byte_cnt = byte_cnt + bytes_sent;
 		} else
 		{
 			memcpy(send_buffer, file_buffer + byte_cnt, BUFFER_SIZE_MTU_PPPoE);
 			bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
-			byte_cnt = byte_cnt + BUFFER_SIZE_MTU_PPPoE;
+			byte_cnt = byte_cnt + bytes_sent;
 		}
 		printf("send packet. Bytes sent: %d. Byte cnt at: %d\n", bytes_sent, byte_cnt);
 	}
-	printf("(%d bytes successfully sent)...\n", byte_cnt);
+	printf("file (%d bytes) successfully sent...\n", byte_cnt);
+
+	// send sha512
+	memcpy(send_buffer, hash_512_string, 129);
+	bytes_sent = write(newsock_destriptor, send_buffer, 129);
+	printf("sent 512-string (%d bytes)...\n", bytes_sent);
+
+	// receive result of sha comparison
+	bytes_sent = read(newsock_destriptor, &rcv_sha_comp, 1);
+	printf("CMP (%d bytes received): %c\n", bytes_sent, rcv_sha_comp);
+
 
 	close(newsock_destriptor);	
 	close(socket_descriptor);

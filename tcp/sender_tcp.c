@@ -118,11 +118,11 @@ int main(int argc, char *argv[])
 	memcpy(send_buffer, &len_file_name, 2);
 	memcpy(send_buffer + 2, archive_file_name, len_file_name);
 	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
-	printf("send header...");
+	printf("send header...\n");
 	bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
 	
-	// send data
-	printf("send data...");
+	// send file
+	printf("send file...\n");
 	byte_cnt = 0;
 	while(byte_cnt<file_size)
 	{
@@ -137,18 +137,27 @@ int main(int argc, char *argv[])
 			bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
 			byte_cnt = byte_cnt + bytes_sent;
 		}
-		printf("send packet. Bytes sent: %d. Byte cnt at: %d\n", bytes_sent, byte_cnt);
 	}
 	printf("file (%d bytes) successfully sent...\n", byte_cnt);
 
 	// send sha512
 	memcpy(send_buffer, hash_512_string, 129);
 	bytes_sent = write(newsock_destriptor, send_buffer, 129);
-	printf("sent 512-string (%d bytes)...\n", bytes_sent);
+	printf("send sha-512-String (%d bytes)...\n", bytes_sent);
 
 	// receive result of sha comparison
 	bytes_sent = read(newsock_destriptor, &rcv_sha_comp, 1);
-	printf("CMP (%d bytes received): %c\n", bytes_sent, rcv_sha_comp);
+	printf("received result of sha-512-String comparison...\n");
+	if(rcv_sha_comp == SHA512_CMP_OK)
+	{
+		printf(SHA512_OK);
+	} else if(rcv_sha_comp == SHA512_CMP_ERROR)
+	{
+		printf(SHA512_ERROR);
+	} else
+	{
+		printf("FAIL!!\n");
+	}
 
 
 	close(newsock_destriptor);	

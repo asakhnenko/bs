@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 			printf(filesize_str, datalen);
 			printf("Message size in bytes: %d\n", err);
 
-			FILE *file = fopen("received/test3.tar.gz","wb+");
+			FILE *file = fopen("received/test3.tar.gz","w+");
 			if(!file)
 			{
 				perror("File wasn't created");
@@ -116,7 +116,6 @@ int main(int argc, char *argv[])
 			unsigned char pkg_buff[2048];
 			do
 			{
-				//TODO: Clean the buffer
 				err = recvfrom(socket_descriptor, pkg_buff, sizeof(pkg_buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 				if(err<0)
 				{
@@ -139,6 +138,10 @@ int main(int argc, char *argv[])
 					printf("Receiving %d-st package of size %d\n", seq, pkg_size);
 					unsigned char file_buff[pkg_size];
 					memcpy(file_buff, pkg_buff + sizeof(unsigned char) + sizeof(unsigned int), pkg_size);
+					printf("%u\n",file_buff[0]);
+					printf("%u\n",file_buff[1]);
+					printf("%u\n",file_buff[2]);
+					printf("%u\n",file_buff[3]);
 					fwrite(file_buff, sizeof(unsigned char), pkg_size, file);
 				}
 			}
@@ -146,6 +149,17 @@ int main(int argc, char *argv[])
 
 			fseek(file, 0, SEEK_END);
 		  unsigned int size = ftell(file);
+
+			fseek(file, 0, SEEK_SET);
+			printf("FILE OPENED%d\n",getc(file));
+
+			fseek(file, 1, SEEK_SET);
+			printf("FILE OPENED%d\n",getc(file));
+
+
+			fseek(file, 2, SEEK_SET);
+			printf("FILE OPENED%d\n",getc(file));
+
 		  fclose(file);
 
 			printf("Size of the created file: %d\n", size);

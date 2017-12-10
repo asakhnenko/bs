@@ -194,12 +194,14 @@ int main(int argc, char *argv[])
     do
     {
       c = fgetc(file);
-      file_buff[i % MTU] = (unsigned char)c;
+      //printf(" %d ", (i % MTU) - 1);
+      file_buff[(i % MTU)] = (unsigned char)c;
       // Split into packages
-      if(i++ % MTU == 0)
+      if(++i % MTU == 0)
       {
+        printf("DEBUG %d\n", i);
         // Construct message
-        seq = i/MTU;
+        seq =(i-1)/MTU;
         // Check if it is the last package
         unsigned int pkg_size = get_pkg_size(seq, datalen);
         printf("Sending %d-st package of size %d\n", seq, pkg_size);

@@ -84,10 +84,10 @@ int main(int argc, char *argv[])
 
   int port;
   port = atoi(argv[1]);
-  if(port == 0)
+  if(port <= 0 || port > 65536)
   {
-      printf("Please provide a number for port\n");
-      return 0;
+      printf(port_error, argv[1]);
+      return -1;
   }
 
   char *filepath;
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
   if(!file_exists(filepath))
   {
       printf("Please give a valid file path\n");
-      return 0;
+      return -1;
   }
 
   //----------------------------------
@@ -149,6 +149,18 @@ int main(int argc, char *argv[])
     printf(packet_error);
     return -1;
   }
+
+  // Set waiting time
+  struct timeval timeout;
+  timeout.tv_sec = 10;
+  timeout.tv_usec = 0;
+
+  err = setsockopt(socket_descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+  if(err<0)
+  {
+    perror("Couldn't set timeout option : ");
+  }
+
   printf("\nRequest received\n\nCreating header:\n");
 
   //--- Sending Header
@@ -206,7 +218,6 @@ int main(int argc, char *argv[])
     memcpy(file_pkg, &DATA_T, sizeof(unsigned char));
     memcpy(file_pkg + sizeof(unsigned char), &seq, sizeof(unsigned int));
     memcpy(file_pkg + sizeof(unsigned char) + sizeof(unsigned int), file_buffer + byte_cnt, pkg_size);
-    printf("Sending %d-st package of size %d bytes\n", seq, pkg_size);
     byte_cnt = byte_cnt + pkg_size;
     seq++;
 

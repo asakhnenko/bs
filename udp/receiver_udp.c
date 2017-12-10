@@ -31,13 +31,22 @@ int main(int argc, char *argv[])
     char *server_addr;
     server_addr = argv[1];
 
+		char check_buff[sizeof(struct sockaddr_in)];
+		int check_addr;
+		check_addr = inet_pton(AF_INET, server_addr, check_buff);
+		if(check_addr == 0)
+		{
+			printf(address_error, argv[1], argv[2]);
+			return 0;
+		}
+
     int port;
     port = atoi(argv[2]);
-    if(port == 0)
-    {
-        printf("Please provide a number for port\n");
-        return 0;
-    }
+		if(port <= 0 || port > 65536)
+	  {
+	      printf(port_error, argv[2]);
+	      return -1;
+	  }
 
     //----------------------------------
     int socket_descriptor, dest_descriptor, err, socklen;
@@ -50,6 +59,17 @@ int main(int argc, char *argv[])
         perror("Socket was not created: ");
     }
     printf("\nSocket is initialized\n");
+
+		// Set waiting time
+		struct timeval timeout;
+		timeout.tv_sec = 10;
+		timeout.tv_usec = 0;
+
+		err = setsockopt(socket_descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+		if(err<0)
+		{
+			perror("Couldn't set timeout option : ");
+		}
 
     //--- Fill in sockaddr_in
     init_addr(&dest_addr, port, server_addr);
@@ -150,7 +170,6 @@ int main(int argc, char *argv[])
         printf(order_error, seq, referrence);
       }
 			unsigned int pkg_size = get_pkg_size(seq, datalen);
-			printf("Receiving %d-st package of size %d bytes\n", seq, pkg_size);
 			unsigned char file_buff[pkg_size];
 			memcpy(file_buff, pkg_buff + sizeof(unsigned char) + sizeof(unsigned int), pkg_size);
 
@@ -186,7 +205,7 @@ int main(int argc, char *argv[])
 			printf(packet_error);
 			return -1;
 		}
-		
+
 		printf("\nReceiving SHA\n");
 		unsigned char hash_512[SHA512_DIGEST_LENGTH];
 		memcpy(hash_512, buff + sizeof(unsigned char), SHA512_DIGEST_LENGTH);
@@ -194,7 +213,7 @@ int main(int argc, char *argv[])
 
 		// Calculating SHA
 		printf("\nCalculating SHA\n");
-		file = fopen("./received/test3.tar.gz","rb");
+		file = fopen(path_to_archiv,"rb");
 		unsigned char fbuff[datalen];
 		fread(fbuff, sizeof(char), datalen, file);
 		SHA512(fbuff, datalen, hash_512);

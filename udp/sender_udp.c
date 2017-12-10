@@ -10,7 +10,7 @@
 #include<sys/socket.h>
 #include<sys/stat.h>
 
-#include"../Aufgabe2.h"
+#include"Aufgabe2.h"
 
 /*
  * Checks whether file exists at filename
@@ -50,7 +50,7 @@ char* create_command(char *filepath)
   strcat(command, " ");
   strcat(command, filepath);
 
-  //free(name);
+  free(name);
   return command;
 }
 
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
     msg_size = sizeof(unsigned char) + SHA512_DIGEST_LENGTH;
     msg = (char*)malloc(msg_size);
     memcpy(msg, &SHA512_T, sizeof(unsigned char));
-    memcpy(msg + sizeof(unsigned char), hash, SHA512_DIGEST_LENGTH);
+    memcpy(msg + sizeof(unsigned char), hash_512, SHA512_DIGEST_LENGTH);
     err = sendto(socket_descriptor, msg, msg_size, 0, (struct sockaddr*) &dest_addr, socklen);
     if(err<0)
     {
@@ -252,7 +252,34 @@ int main(int argc, char *argv[])
     }
     printf("Message size in bytes: %d\n", err);
     free(msg);
+
+    //Receiving a response
+    err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+    if(err<0)
+    {
+        perror("Connection error: ");
+    }
+    else if(err == 0)
+    {
+        printf("Empty message received\n");
+    }
+    typID = buff[0];
+    if(typID == SHA512_CMP_T)
+    {
+      char comp = buff[sizeof(unsigned char)];
+      if(comp == SHA512_CMP_OK)
+      {
+        printf(SHA512_OK);
+      }
+      else if(comp == SHA512_CMP_ERROR)
+      {
+        printf(SHA512_ERROR);
+      }
+    }
+    free(name);
   }
 
+  // close(socket_descriptor);
+  // close(dest_socket_descriptor);
   system("rm -r tmp");
 }

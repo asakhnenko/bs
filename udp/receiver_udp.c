@@ -1,5 +1,6 @@
 #include<arpa/inet.h>
 #include<netinet/in.h>
+#include<openssl/sha.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -8,7 +9,7 @@
 #include<sys/socket.h>
 #include<sys/stat.h>
 
-#include"../Aufgabe2.h"
+#include"Aufgabe2.h"
 
 void init_addr(struct sockaddr_in* addr, int port, char *server_addr)
 {
@@ -98,7 +99,6 @@ int main(int argc, char *argv[])
 			unsigned int datalen;
 			memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
 			printf(filesize_str, datalen);
-
 			printf("Message size in bytes: %d\n", err);
 
 			FILE *file = fopen("received/test3.tar.gz","wb+");
@@ -107,10 +107,12 @@ int main(int argc, char *argv[])
 				perror("File wasn't created");
 			}
 
+			//--- Receiving the packages
+			printf("\nPreparing to receive packages:\n");
 			unsigned int seq;
+      unsigned int referrence = 0;
 			do
 			{
-				//--- Receiving the packages
 				//TODO: Clean the buffer
 				err = recvfrom(socket_descriptor, buff, sizeof(buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 				if(err<0)
@@ -126,6 +128,11 @@ int main(int argc, char *argv[])
 				if(typID == DATA_T)
 				{
 					memcpy(&seq, buff + sizeof(unsigned char), sizeof(unsigned int));
+          if(seq != referrence++)
+          {
+            perror(order_error, seq, referrence);
+          }
+					printf("Receiving %d-st package\n", seq);
 					unsigned char file_buff[MTU];
 					memcpy(file_buff, buff + sizeof(unsigned char) + sizeof(unsigned int), MTU);
 					fwrite(file_buff, sizeof(unsigned char), MTU, file);
@@ -149,8 +156,38 @@ int main(int argc, char *argv[])
 			typID = buff[0];
 			if(typID == SHA512_T)
 			{
+				printf("\nReceiving SHA\n");
 				unsigned char hash_512[SHA512_DIGEST_LENGTH];
-				
+				memcpy(hash_512, buff + sizeof(unsigned char), SHA512_DIGEST_LENGTH);
+				char *hash = create_sha512_string(hash_512);
+
+				// Calculating SHA
+				printf("\nCalculating SHA\n");
+				file = fopen("./received/test3.tar.gz","rb");
+				unsigned char fbuff[datalen];
+				fread(fbuff, sizeof(char), datalen, file);
+				SHA512(fbuff, datalen, hash_512);
+				char *hash_cal = create_sha512_string(hash_512);
+				printf(receiver_sha512, hash_cal);
+
+				//--- Preparing the answer
+				memcpy(buff, &SHA512_CMP_T, sizeof(unsigned char));
+				int comp = strcmp(hash, hash_cal);
+				if(comp == 0)
+				{
+					printf(SHA512_OK);
+					memcpy(buff + sizeof(unsigned char), &SHA512_CMP_OK, sizeof(char));
+				}
+				else
+				{
+					printf(SHA512_ERROR);
+					memcpy(buff + sizeof(unsigned char), &SHA512_CMP_ERROR, sizeof(char));
+				}
+				err = sendto(socket_descriptor, buff, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
+		    if(err<0)
+		    {
+		      perror("Send error: ");
+		    }
 			}
 
 		}

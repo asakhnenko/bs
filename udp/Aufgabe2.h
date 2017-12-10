@@ -1,7 +1,7 @@
 #ifndef AUFGABE_2_H_
 #define AUFGABE_2_H_
 
-#define MTU 1492
+#define MTU 1490
 
 #include <stdlib.h>
 #include <stdio.h>

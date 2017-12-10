@@ -83,91 +83,50 @@ int main(int argc, char *argv[])
 		//----------------------------------
 		// Receiving the files
 		unsigned char typID = buff[0];
-		if(typID == HEADER_T)
+		if(typID != HEADER_T)
 		{
-			//--- Reading the header
-			printf("\nReceived header:\n");
+			printf(packet_error);
+			return -1;
+		}
 
-			unsigned short namelen;
-			memcpy(&namelen, buff + sizeof(unsigned char), sizeof(unsigned short));
+		//--- Reading the header
+		printf("\nReceived header:\n");
 
-			char* name = (char*)malloc(sizeof(char)*(namelen+1));
-			memcpy(name, buff + sizeof(unsigned char) + sizeof(unsigned short), namelen);
-			strcat(name, "\0");
-			printf(filename_str,name);
+		unsigned short namelen;
+		memcpy(&namelen, buff + sizeof(unsigned char), sizeof(unsigned short));
 
-			unsigned int datalen;
-			memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
-			printf(filesize_str, datalen);
-			printf("Message size in bytes: %d\n", err);
+		char* name = (char*)malloc(sizeof(char)*(namelen+1));
+		memcpy(name, buff + sizeof(unsigned char) + sizeof(unsigned short), namelen);
+		strcat(name, "\0");
+		printf(filename_str,name);
 
-			FILE *file = fopen("received/test3.tar.gz","w+");
-			if(!file)
-			{
-				perror("File wasn't created");
-			}
-			// Clean up
-			free(name);
+		unsigned int datalen;
+		memcpy(&datalen, buff + sizeof(unsigned char) + sizeof(unsigned short) + namelen, sizeof(unsigned int));
+		printf(filesize_str, datalen);
+		printf("Message size in bytes: %d\n", err);
 
-			//--- Receiving the packages
-			printf("\nPreparing to receive packages:\n");
-			unsigned int seq;
-      unsigned int referrence = 0;
-			unsigned char pkg_buff[2048];
-			do
-			{
-				err = recvfrom(socket_descriptor, pkg_buff, sizeof(pkg_buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
-				if(err<0)
-				{
-					perror("Connection error: ");
-				}
-				else if(err == 0)
-				{
-					printf("Empty message received\n");
-				}
+		// Create a new file
+		char path_to_archiv[strlen(name)+10];
+		strcpy(path_to_archiv, "received/");
+		strcat(path_to_archiv, name);
 
-				typID = pkg_buff[0];
-				if(typID == DATA_T)
-				{
-					memcpy(&seq, pkg_buff + sizeof(unsigned char), sizeof(unsigned int));
-          if(seq != referrence++)
-          {
-            printf(order_error, seq, referrence);
-          }
-					unsigned int pkg_size = get_pkg_size(seq, datalen);
-					printf("Receiving %d-st package of size %d\n", seq, pkg_size);
-					unsigned char file_buff[pkg_size];
-					memcpy(file_buff, pkg_buff + sizeof(unsigned char) + sizeof(unsigned int), pkg_size);
-					printf("%u\n",file_buff[0]);
-					printf("%u\n",file_buff[1]);
-					printf("%u\n",file_buff[2]);
-					printf("%u\n",file_buff[3]);
-					fwrite(file_buff, sizeof(unsigned char), pkg_size, file);
-				}
-			}
-			while(seq != datalen/MTU);
+		FILE *file = fopen(path_to_archiv,"w+");
+		if(!file)
+		{
+			perror("File wasn't created");
+		}
 
-			fseek(file, 0, SEEK_END);
-		  unsigned int size = ftell(file);
+		// Clean up
+		free(name);
 
-			fseek(file, 0, SEEK_SET);
-			printf("FILE OPENED%d\n",getc(file));
-
-			fseek(file, 1, SEEK_SET);
-			printf("FILE OPENED%d\n",getc(file));
-
-
-			fseek(file, 2, SEEK_SET);
-			printf("FILE OPENED%d\n",getc(file));
-
-		  fclose(file);
-
-			printf("Size of the created file: %d\n", size);
-
-			//----------------------------------
-	    //--- SHA Value
-			// Receiving the Message
-			err = recvfrom(socket_descriptor, buff, sizeof(buff), 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+		//--- Receiving the packages
+		printf("\nPreparing to receive packages:\n");
+		unsigned int seq;
+    unsigned int referrence = 0;
+		unsigned char pkg_buff[2048];
+		do
+		{
+			err = recvfrom(socket_descriptor, pkg_buff, sizeof(pkg_buff) + 1, 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
 			if(err<0)
 			{
 				perror("Connection error: ");
@@ -177,44 +136,87 @@ int main(int argc, char *argv[])
 				printf("Empty message received\n");
 			}
 
-			typID = buff[0];
-			if(typID == SHA512_T)
+			// Read the message
+			typID = pkg_buff[0];
+			if(typID != DATA_T)
 			{
-				printf("\nReceiving SHA\n");
-				unsigned char hash_512[SHA512_DIGEST_LENGTH];
-				memcpy(hash_512, buff + sizeof(unsigned char), SHA512_DIGEST_LENGTH);
-				char *hash = create_sha512_string(hash_512);
-
-				// Calculating SHA
-				printf("\nCalculating SHA\n");
-				file = fopen("./received/test3.tar.gz","rb");
-				unsigned char fbuff[datalen];
-				fread(fbuff, sizeof(char), datalen, file);
-				SHA512(fbuff, datalen, hash_512);
-				char *hash_cal = create_sha512_string(hash_512);
-				printf(receiver_sha512, hash_cal);
-
-				//--- Preparing the answer
-				memcpy(buff, &SHA512_CMP_T, sizeof(unsigned char));
-				int comp = strcmp(hash, hash_cal);
-				if(comp == 0)
-				{
-					printf(SHA512_OK);
-					memcpy(buff + sizeof(unsigned char), &SHA512_CMP_OK, sizeof(char));
-				}
-				else
-				{
-					printf(SHA512_ERROR);
-					memcpy(buff + sizeof(unsigned char), &SHA512_CMP_ERROR, sizeof(char));
-				}
-				err = sendto(socket_descriptor, buff, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
-		    if(err<0)
-		    {
-		      perror("Send error: ");
-		    }
+				printf(packet_error);
+				return -1;
 			}
 
+			memcpy(&seq, pkg_buff + sizeof(unsigned char), sizeof(unsigned int));
+      if(seq != referrence++)
+      {
+        printf(order_error, seq, referrence);
+      }
+			unsigned int pkg_size = get_pkg_size(seq, datalen);
+			printf("Receiving %d-st package of size %d bytes\n", seq, pkg_size);
+			unsigned char file_buff[pkg_size];
+			memcpy(file_buff, pkg_buff + sizeof(unsigned char) + sizeof(unsigned int), pkg_size);
+
+			// Save in file
+			fwrite(file_buff, sizeof(unsigned char), pkg_size, file);
 		}
-		printf("\nFile contains: \n");
-		system("cat received/test3.tar.gz");
+		while(seq != datalen/MTU);
+
+		// Calculate the file size
+		fseek(file, 0, SEEK_END);
+	  unsigned int size = ftell(file);
+	  fclose(file);
+
+		printf("Size of the created file: %d bytes\n", size);
+
+		//----------------------------------
+    //--- SHA Value
+		// Receiving the Message
+		err = recvfrom(socket_descriptor, buff, sizeof(buff), 0, (struct sockaddr *) &dest_addr,(socklen_t*) &socklen);
+		if(err<0)
+		{
+			perror("Connection error: ");
+		}
+		else if(err == 0)
+		{
+			printf("Empty message received\n");
+		}
+
+		// Reading the message
+		typID = buff[0];
+		if(typID != SHA512_T)
+		{
+			printf(packet_error);
+			return -1;
+		}
+		
+		printf("\nReceiving SHA\n");
+		unsigned char hash_512[SHA512_DIGEST_LENGTH];
+		memcpy(hash_512, buff + sizeof(unsigned char), SHA512_DIGEST_LENGTH);
+		char *hash = create_sha512_string(hash_512);
+
+		// Calculating SHA
+		printf("\nCalculating SHA\n");
+		file = fopen("./received/test3.tar.gz","rb");
+		unsigned char fbuff[datalen];
+		fread(fbuff, sizeof(char), datalen, file);
+		SHA512(fbuff, datalen, hash_512);
+		char *hash_cal = create_sha512_string(hash_512);
+		printf(receiver_sha512, hash_cal);
+
+		//--- Preparing the answer
+		memcpy(buff, &SHA512_CMP_T, sizeof(unsigned char));
+		int comp = strcmp(hash, hash_cal);
+		if(comp == 0)
+		{
+			printf(SHA512_OK);
+			memcpy(buff + sizeof(unsigned char), &SHA512_CMP_OK, sizeof(char));
+		}
+		else
+		{
+			printf(SHA512_ERROR);
+			memcpy(buff + sizeof(unsigned char), &SHA512_CMP_ERROR, sizeof(char));
+		}
+		err = sendto(socket_descriptor, buff, sizeof(msg) + 1, 0, (struct sockaddr*) &dest_addr, socklen);
+    if(err<0)
+    {
+      perror("Send error: ");
+    }
 }

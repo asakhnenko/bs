@@ -14,10 +14,11 @@ int main(int argc, char *argv[])
 {
 	int socket_descriptor, err, res, newsock_destriptor, byte_cnt;
 	unsigned int file_size;
+	unsigned short len_file_name;
 	struct sockaddr_in sender_addr, client_addr;
 	socklen_t addrlen;
-	char hash_512[SHA512_DIGEST_LENGTH], *hash_512_string, *file_name, *archive_file_name;
-	unsigned char send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer, *msg;
+	char hash_512[SHA512_DIGEST_LENGTH], *hash_512_string;
+	unsigned char send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer, *msg, *file_name, *archive_file_name;
 	FILE *fp;	
 
 	// check number of arguments
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
 	}
 
 	printf("Received connection from %s!\n", inet_ntoa(client_addr.sin_addr));
-	//byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPeE);
+	//byte_cnt = read(newsock_destriptor, buffer, BUFFER_SIZE_MTU_PPPoE);
 	//if(byte_cnt <0)
 	//{
 	//	printf("ERROR: receiving failed!\n");
@@ -136,15 +137,18 @@ int main(int argc, char *argv[])
 	//}
 	//printf("received %d bytes\n", byte_cnt);
 	//printf("msg: %s\n", buffer);
+	
+	len_file_name = strlen(archive_file_name);
+	memcpy(send_buffer, &len_file_name, 2);
+	memcpy(send_buffer + 2, archive_file_name, len_file_name);
+	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
+	printf("send header...\n");
+	write(newsock_destriptor, send_buffer, 6 + len_file_name + 1);
+	
 
 
-
-	write(newsock_destriptor, "connection established!", strlen("connection established!") + 1);
-
-	//send_buffer
-
-	close(newsock_destriptor);	
-	close(socket_descriptor);
+	//close(newsock_destriptor);	
+	//close(socket_descriptor);
 
 	free(hash_512_string);
 	free(archive_file_name);

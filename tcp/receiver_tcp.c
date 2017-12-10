@@ -12,8 +12,11 @@
 int main(int argc, char *argv[])
 {
 	int socket_descriptor, port, err, byte_cnt;
+	unsigned int rcv_file_size;
+	unsigned short rcv_len_file_name;
 	struct sockaddr_in dest_addr;
-	char *input_addr, send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE];
+	char *input_addr, *rcv_file_name;
+	unsigned char *send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE];
 	socklen_t addrlen;
 
 	// check number of arguments
@@ -59,10 +62,23 @@ int main(int argc, char *argv[])
 	//printf("sending msg '%s'...\n", send_buffer);
 	//byte_cnt = write(socket_descriptor, send_buffer, strlen(send_buffer)+1);
 
-	read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
+	byte_cnt = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
+	memcpy(&rcv_len_file_name, rcv_buffer, 2);
+	printf("received header...\n");
+	printf("length of file name: %d\n", rcv_len_file_name);
+	rcv_file_name = malloc(rcv_len_file_name+1);
+	memcpy(rcv_file_name, rcv_buffer+2, rcv_len_file_name);
+	strcat(rcv_file_name, "\0");
+	printf(filename_str, rcv_file_name);
 
-	printf("received: %s\n", rcv_buffer);
+	memcpy(&rcv_file_size, rcv_buffer+2+rcv_len_file_name, 4);
 
+	printf("length of file: %d\n", rcv_file_size);
+
+	
+
+
+	free(rcv_file_name);
 	close(socket_descriptor);
 
 }

@@ -80,6 +80,16 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	struct timeval timeout;
+	timeout.tv_sec = 10;
+	timeout.tv_usec = 0;
+
+	err = setsockopt(newsock_destriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval));
+	if(err < 0)
+	{
+		printf(timeout_error);
+	}
+
 	memcpy(&rcv_len_file_name, rcv_buffer, 2);
 	rcv_file_name = malloc(rcv_len_file_name+1);
 	memcpy(rcv_file_name, rcv_buffer+2, rcv_len_file_name);

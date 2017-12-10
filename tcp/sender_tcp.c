@@ -142,6 +142,17 @@ int main(int argc, char *argv[])
 		free(file_buffer);
 		return 0;
 	}
+
+	struct timeval timeout;
+	timeout.tv_sec = 10;
+	timeout.tv_usec = 0;
+
+	err = setsockopt(newsock_destriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval));
+	if(err < 0)
+	{
+		printf(timeout_error);
+	}
+
 	// send file
 	printf("send file...\n");
 	byte_cnt = 0;

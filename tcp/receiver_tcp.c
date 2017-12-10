@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	unsigned int rcv_file_size;
 	unsigned short rcv_len_file_name;
 	struct sockaddr_in dest_addr;
-	char *input_addr, *rcv_file_name, *path_name_buffer;
+	char *input_addr, *rcv_file_name, *path_name_buffer, hash_512[SHA512_DIGEST_LENGTH], *hash_512_string;
 	unsigned char *send_buffer[BUFFER_SIZE_MTU_PPPoE], rcv_buffer[BUFFER_SIZE_MTU_PPPoE], *file_buffer;
 	socklen_t addrlen;
 	FILE *fp;
@@ -91,7 +91,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("received all data (%d bytes)...\n", byte_cnt);
+	printf("received file (%d bytes)...\n", byte_cnt);
+
+	// SHA512
+	SHA512(file_buffer, rcv_file_size, hash_512);
+	hash_512_string = create_sha512_string(hash_512);
+	printf(receiver_sha512, hash_512_string);
 
 	// store data in file
 	path_name_buffer = malloc(strlen(rcv_file_name) + 10);

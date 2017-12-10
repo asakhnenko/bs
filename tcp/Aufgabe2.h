@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <libgen.h> // new
+
+static const size_t BUFFER_SIZE_MTU_PPPoE = 1492;
 
 static const char SHA512_CMP_OK = 0;
 static const char SHA512_CMP_ERROR = -1;
@@ -32,6 +35,78 @@ static char* create_sha512_string(unsigned char* sha512) {
         sprintf(result+2*i,"%02x",*(sha512+i));
     }
     return result;
+}
+
+void init_addr_receiver(struct sockaddr_in* addr, int port, char *sender_addr) {
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port); //host to network short encoding
+	addr->sin_addr.s_addr = inet_addr(sender_addr);
+}
+
+void init_addr_sender(struct sockaddr_in *addr, int port)
+{
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(port); //host to network short encoding
+	addr->sin_addr.s_addr = htonl(INADDR_ANY);
+}
+
+int file_exists(char *fname)
+{
+  if(access(fname, F_OK ) != -1)
+  {
+    return 1;
+  } else
+  {
+    return 0;
+  }
+}
+
+char *get_file_name(char *path)
+{
+	return basename(path); //(Do not pass these pointers to free(3).)
+}
+
+char *get_archive_name(char *name)
+{
+	char *archive_file_name;
+	archive_file_name = malloc(strlen(name) + 8);
+	strncpy(archive_file_name, name, strlen(name));
+	strncat(archive_file_name, ".tar.gz", 7);
+	return archive_file_name;
+}
+
+unsigned int get_file_size(char *archive_file_name)
+{
+	unsigned int file_size;
+	FILE *fp;
+
+	fp = fopen(archive_file_name, "r");
+	if(fp==NULL)
+	{
+
+		printf("ERROR: could not open file: %s\n", archive_file_name);
+		fclose(fp);
+		return -1;
+	}
+
+	fseek(fp, 0L, SEEK_END);
+	file_size = ftell(fp);
+
+	fclose(fp);
+	return file_size;
+}
+
+char* archive(char *filename, char *filepath)
+{
+  char *command;
+  command = malloc(20 + strlen(filename) + strlen(filepath));
+  sprintf(command, "tar -zcf %s.tar.gz %s", filename, filepath);
+  if(system(command) < 0)
+  {
+  	printf("ERROR: %s could not be archived\n", filename);
+  }
+  free(command);
+  return 0;
 }
 
 #endif

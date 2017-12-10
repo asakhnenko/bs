@@ -76,30 +76,22 @@ int main(int argc, char *argv[])
 	file_buffer = malloc(rcv_file_size);
 	byte_cnt = 0;
 
-	// extract data from first packet if available
-	if(bytes_received>bytes_header)
-	{
-		memcpy(file_buffer, rcv_buffer+bytes_header, bytes_received - bytes_header);
-		byte_cnt = byte_cnt + bytes_received - bytes_header;
-		printf("more bytes than just header! Header size: %d. Bytes received: %d. Bytes as data: %d\n", bytes_header, bytes_received, byte_cnt);
-
-	}
-
 	while(byte_cnt < rcv_file_size)
 	{
 		if(rcv_file_size - byte_cnt < BUFFER_SIZE_MTU_PPPoE)
 		{
 			bytes_received = read(socket_descriptor, rcv_buffer, rcv_file_size - byte_cnt);
 			memcpy(file_buffer + byte_cnt, rcv_buffer, rcv_file_size - byte_cnt);
-			byte_cnt = rcv_file_size;
+			byte_cnt = byte_cnt + bytes_received;
 		} else
 		{
 			bytes_received = read(socket_descriptor, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
 			memcpy(file_buffer + byte_cnt, rcv_buffer, BUFFER_SIZE_MTU_PPPoE);
-			byte_cnt = byte_cnt + BUFFER_SIZE_MTU_PPPoE;
+			byte_cnt = byte_cnt + bytes_received;
 		}
-		printf("received packet of size %d. Byte cnt: %d\n", bytes_received ,byte_cnt);
 	}
+
+	printf("received all data (%d bytes)...\n", byte_cnt);
 
 	// store data in file
 	path_name_buffer = malloc(strlen(rcv_file_name) + 10);
@@ -112,7 +104,7 @@ int main(int argc, char *argv[])
 		printf("ERROR: creating file '%s' failed!\n", path_name_buffer);
 	}
 	fwrite(file_buffer, sizeof(char), rcv_file_size, fp);
-	printf("created: %s\n", path_name_buffer);
+	printf("created: %s...\n", path_name_buffer);
 	fclose(fp);
 
 	free(file_buffer);

@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 	memcpy(send_buffer + 2, archive_file_name, len_file_name);
 	memcpy(send_buffer + 2 + len_file_name, &file_size, 4);
 	printf("send header");
-	bytes_sent = write(newsock_destriptor, send_buffer, 6 + len_file_name + 1);
+	bytes_sent = write(newsock_destriptor, send_buffer, BUFFER_SIZE_MTU_PPPoE);
 	printf("(%d bytes sent)...\n", bytes_sent);
 	
 	// send data

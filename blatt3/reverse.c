@@ -38,9 +38,12 @@ struct buffer {
 	unsigned long size;
 };
 
+struct buffer *buf;
+
 static struct buffer *buffer_alloc(unsigned long size)
 {
-	struct buffer *buf = NULL;
+	//struct buffer *
+	buf = NULL;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (unlikely(!buf))
@@ -71,30 +74,6 @@ static void buffer_free(struct buffer *buffer)
 	kfree(buffer);
 }
 
-// static inline char *encrypt_word(char *start, char *end)
-// {
-// 	char *orig_start = start, tmp;
-//
-// 	for (; start < end; start++, end--) {
-// 		tmp = *start;
-// 		*start = *end;
-// 		*end = tmp;
-// 	}
-//
-// 	return orig_start;
-// }
-//
-// static char *encrypt_phrase(char *start, char *end)
-// {
-// 		char *word_start = start, *word_end = NULL;
-// 		while ((word_end = memchr(word_start, ' ', end - word_start)) != NULL) {
-// 			encrypt_word(word_start, word_end - 1);
-// 			word_start = word_end + 1;
-// 		}
-// 	 encrypt_word(word_start, end);
-//
-// 	return encrypt_word(start, end);
-// }
 static long input2number(char *string, size_t size)
 {
 	long result = 0;
@@ -171,17 +150,17 @@ static char* number2output(unsigned long number)
 
 static int encrypt_open(struct inode *inode, struct file *file)
 {
-	struct buffer *buf;
+	//struct buffer *buf;
 	int err = 0;
-	buf = buffer_alloc(buffer_size);
-	if (unlikely(!buf)) {
-		err = -ENOMEM;
-		goto out;
-	}
+	// buf = buffer_alloc(buffer_size);
+	// if (unlikely(!buf)) {
+	// 	err = -ENOMEM;
+	// 	goto out;
+	// }
 	// is used to associate file descriptor with some random data
 	file->private_data = buf;
 
- out:
+ // out:
 	return err;
 }
 
@@ -190,8 +169,9 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 			    size_t size, loff_t * off)
 {
 	// copy to buffer
-	struct buffer *buf = file->private_data;
+	//struct buffer *
 	ssize_t result;
+	buf = file->private_data;
 
 	if (mutex_lock_interruptible(&buf->lock)) {
 		result = -ERESTARTSYS;
@@ -241,12 +221,13 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 static ssize_t encrypt_write(struct file *file, const char __user * in,
 			     size_t size, loff_t * off)
 {
-	struct buffer *buf = file->private_data;
+	//struct buffer *
 	//TODO: WTF (= 0)
 	ssize_t result = 0;
 	long decrypted;
 	unsigned long encrypted;
 	char* output;
+	buf = file->private_data;
 
 	if (size > buffer_size) {
 		result = -EFBIG;
@@ -296,7 +277,8 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 
 static int encrypt_close(struct inode *inode, struct file *file)
 {
-	struct buffer *buf = file->private_data;
+	//struct buffer *
+	buf = file->private_data;
 
 	buffer_free(buf);
 
@@ -320,6 +302,7 @@ static struct miscdevice encrypt_misc_device = {
 
 static int __init encrypt_init(void)
 {
+	int err;
 	if (!buffer_size)
 		return -1;
 
@@ -328,7 +311,14 @@ static int __init encrypt_init(void)
 	       "encrypt device has been registered, buffer size is %lu bytes\n",
 	       buffer_size);
 
-	return 0;
+	err = 0;
+ 	buf = buffer_alloc(buffer_size);
+ 	if (unlikely(!buf)) {
+ 		err = -ENOMEM;
+ 		goto out;
+ 	}
+out:
+	return err;
 }
 
 static void __exit encrypt_exit(void)

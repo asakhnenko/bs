@@ -2,12 +2,13 @@
 #include<string.h>
 #include<sys/types.h>
 #include<sys/stat.h>
+#include<sys/ioctl.h>
 #include<unistd.h>
 #include<stdio.h>
 #include<stdlib.h>
+
 #include "mod_exp.h"
-
-
+#include "brpa3.h"
 
 unsigned short order = 59;
 unsigned short generator = 2;
@@ -78,6 +79,8 @@ int main(int argc, char *argv[])
 	{
 		perror("Failed to open a device");
 	}
+	unsigned short secret = 1;
+	ioctl(fd, BRPA3_SET_SECRET, &secret);
 	write(fd, argv[1], strlen(argv[1]));
 	long test = input2number(argv[1], strlen(argv[1]));
 	unsigned long test3 = decrypt(test);

@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 	unsigned long test3 = decrypt(test);
 	char* test2 = number2output(test3);
 	printf("Encrypted in test: %s\n", test2);
-	char try[64];
+	char try[strlen(argv[1])];
 	read(fd, try, strlen(argv[1]));
 	printf("Read: %s \n", try);
 

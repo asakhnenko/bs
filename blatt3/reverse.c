@@ -133,7 +133,7 @@ static char* number2output(unsigned long number)
 
 	size = output_size(number);
 
-	output = (char*)kmalloc(size, GFP_KERNEL);
+	output = (char*)kmalloc(size+1, GFP_KERNEL);
 	if(output == NULL)
 	{
 		printk("kmalloc panic");
@@ -145,6 +145,8 @@ static char* number2output(unsigned long number)
 		output[i] = (number % 10) + 48;
 		number = number / 10;
 	}
+
+	output[size] = '\0';
 	return output;
 }
 
@@ -261,8 +263,8 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		output = number2output(encrypted);
 
 		buf->data = output;
-		buf->end = buf->data + (size_t)output_size(encrypted);
-		printk(KERN_INFO "Debug: %li", buf->end - buf->data);
+		buf->end = buf->data + (size_t)output_size(encrypted)+1;
+		printk(KERN_INFO "Debug: %li", (long) (buf->end - buf->data));
 	}
 	buf->read_ptr = buf->data;
 	// wake up processes waiting in the queue
@@ -277,11 +279,6 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 
 static int encrypt_close(struct inode *inode, struct file *file)
 {
-	//struct buffer *
-	buf = file->private_data;
-
-	buffer_free(buf);
-
 	return 0;
 }
 
@@ -323,6 +320,7 @@ out:
 
 static void __exit encrypt_exit(void)
 {
+	buffer_free(buf);
 	misc_deregister(&encrypt_misc_device);
 	printk(KERN_INFO "encrypt device has been unregistered\n");
 }

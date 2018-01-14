@@ -41,6 +41,7 @@ struct buffer {
 
 struct buffer *buf;
 unsigned int almost_done;
+unsigned int mistake_in_buffer;
 
 static struct buffer *buffer_alloc(unsigned long size)
 {
@@ -165,7 +166,6 @@ static int encrypt_open(struct inode *inode, struct file *file)
 	buf->read_ptr = buf->data;
 	file->private_data = buf;
 	almost_done = 0;
-
 	return 0;
 }
 
@@ -180,22 +180,21 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 
 	printk(KERN_INFO "Reading %s\n",buf->read_ptr);
 
-	// if (mutex_lock_interruptible(&buf->lock)) {
-	// 	result = -ERESTARTSYS;
-	// 	goto out;
-	// }
+	if(mistake_in_buffer == 1)
+	{
+		printk(KERN_INFO "Previous write had incorrect input \n");
+		return -1;
+	}
 
-	printk(KERN_INFO "Debug Read 1 \n");
 	if(almost_done == 1)
 	{
-		printk(KERN_INFO "Next step, go out \n");
 		almost_done = 0;
 		return 0;
 	}
+
 	// there can be many processes waiting for the data (that's why while())
 	// for end of file or file to become available
 	while (buf->read_ptr == buf->end) {
-		printk(KERN_INFO "Debug Read While Loop \n");
 		mutex_unlock(&buf->lock);
 		if (file->f_flags & O_NONBLOCK) {
 			result = -EAGAIN;
@@ -212,7 +211,7 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 			goto out;
 		}
 	}
-	printk(KERN_INFO "Debug Read 2 \n");
+
 	// to make sure that userspace is not empty yet
 	size = min(size, (size_t) (buf->end - buf->read_ptr));
 	// copy from buffer to user space
@@ -221,20 +220,13 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 		result = -EFAULT;
 		goto out;
 	}
-	printk(KERN_INFO "Debug Read 3 \n");
+
 	// allow reading data in arbitrary chunks
 	buf->read_ptr += size;
 	result = size;
 	almost_done = 1;
 
-	printk(KERN_INFO "Debug Read wake up \n");
-
- // out_unlock:
-	// mutex_unlock(&buf->lock);
-	// printk(KERN_INFO "Debug Read 6 \n");
-
  out:
- 	printk(KERN_INFO "Debug Read out \n");
  // return either number of bytes read or an error code
 	return result;
 }
@@ -247,7 +239,7 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 	unsigned long encrypted;
 	char* output;
 
-	// buf = file->private_data;
+	buf = file->private_data;
 
 	printk(KERN_INFO "Writing \n");
 
@@ -261,6 +253,9 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		result = -ERESTARTSYS;
 		goto out;
 	}
+
+	// // Remove previously allocated space
+	// kfree(buf->data);
 
 	printk(KERN_INFO "Debug Write 2 \n");
 	if (copy_from_user(buf->data, in, size)) {
@@ -277,9 +272,12 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		printk(KERN_INFO "Received %li \n", decrypted);
 		if(decrypted < 0)
 		{
-			result = 0;
+			result = -1;
+			mistake_in_buffer = 1;
+			buf->read_ptr = buf->end;
 			goto out_unlock;
 		}
+		mistake_in_buffer = 0;
 		encrypted = decrypt(decrypted);
 		output = number2output(encrypted);
 		printk(KERN_INFO "Result %s \n", output);
@@ -347,7 +345,7 @@ static long encrypt_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			break;
 		default:
 			return -EINVAL;
-}
+	}
 
 	return 0;
 }
@@ -386,6 +384,7 @@ static int __init encrypt_init(void)
  		err = -ENOMEM;
  		goto out;
  	}
+	mistake_in_buffer = 0;
 out:
 	return err;
 }

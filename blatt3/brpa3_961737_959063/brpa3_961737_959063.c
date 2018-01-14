@@ -174,7 +174,7 @@ static char* number2output(unsigned long number)
 		number = number / 10;
 	}
 
-	output[size] = '\0';
+	output[size] = '\n';
 	return output;
 }
 

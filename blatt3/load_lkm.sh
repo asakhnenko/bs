@@ -9,4 +9,5 @@ sudo insmod reverse.ko
 sudo chmod 666 /dev/reverse
 echo "Compiling test file"
 gcc -o test test.c
+gcc -o elgamal elgamal.c
 echo "Done"

@@ -11,6 +11,7 @@
 #include <linux/sched.h>	/* wait queues */
 #include <linux/uaccess.h>	/* copy_{to,from}_user() */
 
+#include "brpa3.h"
 #include "mod_exp.h"
 
 MODULE_LICENSE("GPL");
@@ -72,6 +73,12 @@ static void buffer_free(struct buffer *buffer)
 {
 	kfree(buffer->data);
 	kfree(buffer);
+}
+
+static void updateOpenkey(void)
+{
+	openkey = mod_exp(generator, secret, order);
+	printk(KERN_INFO "New OpenKey is %d", openkey);
 }
 
 static long input2number(char *string, size_t size)
@@ -154,12 +161,6 @@ static int encrypt_open(struct inode *inode, struct file *file)
 {
 	//struct buffer *buf;
 	int err = 0;
-	// buf = buffer_alloc(buffer_size);
-	// if (unlikely(!buf)) {
-	// 	err = -ENOMEM;
-	// 	goto out;
-	// }
-	// is used to associate file descriptor with some random data
 	file->private_data = buf;
 
  // out:
@@ -253,7 +254,7 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		printk(KERN_INFO "Starting \n");
 		//encrypt_phrase(buf->data, buf->end - 1);
 		decrypted = input2number(buf->data, size);
-		printk(KERN_INFO "Decrypted %li \n", decrypted);
+		printk(KERN_INFO "Encrypted %li \n", decrypted);
 		if(decrypted < 0)
 		{
 			goto out;
@@ -264,7 +265,6 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 
 		buf->data = output;
 		buf->end = buf->data + (size_t)output_size(encrypted)+1;
-		printk(KERN_INFO "Debug: %li", (long) (buf->end - buf->data));
 	}
 	buf->read_ptr = buf->data;
 	// wake up processes waiting in the queue
@@ -282,12 +282,55 @@ static int encrypt_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long encrypt_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+{
+	unsigned short tmp;
+	switch (cmd)
+	{
+		case BRPA3_SET_SECRET:
+			if(copy_from_user(&tmp, (unsigned short*)arg, sizeof(unsigned short)))
+			{
+				printk(KERN_INFO "Couldn't copy secret");
+				return -EACCES;
+			}
+			if(tmp < 0 || tmp > order)
+			{
+				printk(KERN_INFO "Incorrect secret value");
+				return -EINVAL;
+			}
+			secret = tmp;
+			updateOpenkey();
+			break;
+		case BRPA3_SET_OPENKEY:
+			if(copy_from_user(&tmp, (unsigned short*)arg, sizeof(unsigned short)))
+			{
+				printk(KERN_INFO "Couldn't copy openkey");
+				return -EACCES;
+			}
+			openkey_sender = tmp;
+			break;
+		case BRPA3_GET_OPENKEY:
+			if(copy_to_user((unsigned short*)arg, &openkey, sizeof(unsigned short)))
+			{
+				printk(KERN_INFO "Couldn't return openkey");
+				return -EACCES;
+			}
+			break;
+		default:
+			return -EINVAL;
+}
+
+	return 0;
+}
+
 static struct file_operations encrypt_fops = {
 	.owner = THIS_MODULE,
 	.open = encrypt_open,
 	.read = encrypt_read,
 	.write = encrypt_write,
 	.release = encrypt_close,
+	// .ioctl was renamed into unlocked_ioclt
+	.unlocked_ioctl = encrypt_ioctl,
 	.llseek = noop_llseek
 };
 

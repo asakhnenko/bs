@@ -142,7 +142,7 @@ static char* number2output(unsigned long number)
 
 	size = output_size(number);
 
-	output = (char*)kmalloc(size+1, GFP_KERNEL);
+	output = (char*)kmalloc(size, GFP_KERNEL);
 	if(output == NULL)
 	{
 		printk("kmalloc panic");
@@ -155,7 +155,7 @@ static char* number2output(unsigned long number)
 		number = number / 10;
 	}
 
-	output[size] = '\0';
+	// output[size] = '\0';
 	return output;
 }
 
@@ -254,9 +254,6 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		goto out;
 	}
 
-	// // Remove previously allocated space
-	// kfree(buf->data);
-
 	printk(KERN_INFO "Debug Write 2 \n");
 	if (copy_from_user(buf->data, in, size)) {
 		result = -EFAULT;
@@ -282,12 +279,12 @@ static ssize_t encrypt_write(struct file *file, const char __user * in,
 		output = number2output(encrypted);
 		printk(KERN_INFO "Result %s \n", output);
 
-		// Remove previously allocated space
-		kfree(buf->data);
+		// // Remove previously allocated space
+		// kfree(buf->data);
 
 		// Reassign
 		buf->data = output;
-		buf->end = buf->data + (size_t)output_size(encrypted)+1;
+		buf->end = buf->data + (size_t)output_size(encrypted);
 	}
 
 	buf->read_ptr = buf->data;

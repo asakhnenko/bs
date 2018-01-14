@@ -40,6 +40,7 @@ struct buffer {
 };
 
 struct buffer *buf;
+unsigned int almost_done;
 
 static struct buffer *buffer_alloc(unsigned long size)
 {
@@ -159,12 +160,13 @@ static char* number2output(unsigned long number)
 
 static int encrypt_open(struct inode *inode, struct file *file)
 {
-	//struct buffer *buf;
-	int err = 0;
+	printk(KERN_INFO "Opening device \n");
+	//struct buffer *buf
+	buf->read_ptr = buf->data;
 	file->private_data = buf;
+	almost_done = 0;
 
- // out:
-	return err;
+	return 0;
 }
 
 // copies the data from kernel buffer into userspace
@@ -176,14 +178,24 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 	ssize_t result;
 	buf = file->private_data;
 
-	if (mutex_lock_interruptible(&buf->lock)) {
-		result = -ERESTARTSYS;
-		goto out;
-	}
+	printk(KERN_INFO "Reading %s\n",buf->read_ptr);
 
+	// if (mutex_lock_interruptible(&buf->lock)) {
+	// 	result = -ERESTARTSYS;
+	// 	goto out;
+	// }
+
+	printk(KERN_INFO "Debug Read 1 \n");
+	if(almost_done == 1)
+	{
+		printk(KERN_INFO "Next step, go out \n");
+		almost_done = 0;
+		return 0;
+	}
 	// there can be many processes waiting for the data (that's why while())
 	// for end of file or file to become available
 	while (buf->read_ptr == buf->end) {
+		printk(KERN_INFO "Debug Read While Loop \n");
 		mutex_unlock(&buf->lock);
 		if (file->f_flags & O_NONBLOCK) {
 			result = -EAGAIN;
@@ -200,23 +212,29 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 			goto out;
 		}
 	}
-
+	printk(KERN_INFO "Debug Read 2 \n");
 	// to make sure that userspace is not empty yet
 	size = min(size, (size_t) (buf->end - buf->read_ptr));
 	// copy from buffer to user space
 	// it fails if the pointer is wrong (don't trust anything from the kernel)
 	if (copy_to_user(out, buf->read_ptr, size)) {
 		result = -EFAULT;
-		goto out_unlock;
+		goto out;
 	}
-
+	printk(KERN_INFO "Debug Read 3 \n");
 	// allow reading data in arbitrary chunks
 	buf->read_ptr += size;
 	result = size;
+	almost_done = 1;
 
- out_unlock:
-	mutex_unlock(&buf->lock);
+	printk(KERN_INFO "Debug Read wake up \n");
+
+ // out_unlock:
+	// mutex_unlock(&buf->lock);
+	// printk(KERN_INFO "Debug Read 6 \n");
+
  out:
+ 	printk(KERN_INFO "Debug Read out \n");
  // return either number of bytes read or an error code
 	return result;
 }
@@ -224,61 +242,72 @@ static ssize_t encrypt_read(struct file *file, char __user * out,
 static ssize_t encrypt_write(struct file *file, const char __user * in,
 			     size_t size, loff_t * off)
 {
-	//struct buffer *
-	//TODO: WTF (= 0)
 	ssize_t result = 0;
 	long decrypted;
 	unsigned long encrypted;
 	char* output;
-	buf = file->private_data;
+
+	// buf = file->private_data;
+
+	printk(KERN_INFO "Writing \n");
 
 	if (size > buffer_size) {
 		result = -EFBIG;
 		goto out;
 	}
 
+	printk(KERN_INFO "Debug Write 1 \n");
 	if (mutex_lock_interruptible(&buf->lock)) {
 		result = -ERESTARTSYS;
 		goto out;
 	}
 
+	printk(KERN_INFO "Debug Write 2 \n");
 	if (copy_from_user(buf->data, in, size)) {
 		result = -EFAULT;
 		goto out_unlock;
 	}
 
 	buf->end = buf->data + size;
-
+	printk(KERN_INFO "Debug Write 3 \n");
 	if (buf->end > buf->data)
 	{
-		printk(KERN_INFO "Starting \n");
-		//encrypt_phrase(buf->data, buf->end - 1);
+		// Do the calculations
 		decrypted = input2number(buf->data, size);
-		printk(KERN_INFO "Encrypted %li \n", decrypted);
+		printk(KERN_INFO "Received %li \n", decrypted);
 		if(decrypted < 0)
 		{
-			goto out;
+			result = 0;
+			goto out_unlock;
 		}
 		encrypted = decrypt(decrypted);
-		// TODO free
 		output = number2output(encrypted);
+		printk(KERN_INFO "Result %s \n", output);
 
+		// Remove previously allocated space
+		kfree(buf->data);
+
+		// Reassign
 		buf->data = output;
 		buf->end = buf->data + (size_t)output_size(encrypted)+1;
 	}
+
 	buf->read_ptr = buf->data;
 	// wake up processes waiting in the queue
+	printk(KERN_INFO "Debug Write 4 \n");
 	wake_up_interruptible(&buf->read_queue);
 
 	result = size;
  out_unlock:
 	mutex_unlock(&buf->lock);
  out:
+ 	printk(KERN_INFO "Write out \n");
 	return result;
 }
 
 static int encrypt_close(struct inode *inode, struct file *file)
 {
+	printk(KERN_INFO "Closing \n");
 	return 0;
 }
 
